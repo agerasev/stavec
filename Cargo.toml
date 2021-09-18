@@ -1,0 +1,19 @@
+[package]
+name = "stavec"
+version = "0.1.0"
+edition = "2018"
+
+description = "Lock-free SPSC FIFO ring buffer with direct access to inner data"
+documentation = "https://docs.rs/stavec"
+homepage = "https://github.com/agerasev/stavec"
+repository = "https://github.com/agerasev/stavec.git"
+readme = "README.md"
+keywords = ["static", "vector"]
+categories = ["data-structures", "no-std"]
+license = "MIT/Apache-2.0"
+
+[features]
+default = ["std"]
+std = []
+
+[dependencies]
