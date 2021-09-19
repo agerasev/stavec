@@ -3,6 +3,7 @@
 #[cfg(feature = "std")]
 extern crate std;
 
+mod cmp;
 mod iter;
 
 #[cfg(test)]
@@ -30,8 +31,10 @@ pub struct StaticVec<T, const N: usize> {
 }
 
 impl<T, const N: usize> StaticVec<T, N> {
+    /// Maximum capacity of the vector.
     pub const CAPACITY: usize = N;
 
+    /// Creates an empty vector.
     pub fn new() -> Self {
         Self {
             data: unsafe { MaybeUninit::uninit().assume_init() },
@@ -39,27 +42,37 @@ impl<T, const N: usize> StaticVec<T, N> {
         }
     }
 
-    pub fn from_array(array: [T; N]) -> Self {
-        let self_ = Self {
-            data: unsafe { ptr::read(&array as *const _ as *const [MaybeUninit<T>; N]) },
-            len: N,
-        };
-        mem::forget(array);
+    /// Creates the vector filling it with the value returned from closure up to specified length.
+    ///
+    /// The vector is filled sequentially by subsequent closure calls.
+    ///
+    /// *Panics if `len` is greater than the vector capacity.*
+    pub fn fill_with<F: Fn() -> T>(len: usize, func: F) -> Self {
+        assert!(len <= N);
+        let mut self_ = Self::new();
+        for _ in 0..len {
+            unsafe { self_.push_unchecked(func()) };
+        }
         self_
     }
 
+    /// The number of elements in the vector. Must be less or equal to `CAPACITY`.
     pub fn len(&self) -> usize {
         self.len
     }
 
+    /// Checks whether the vector is empty.
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
 
+    /// Checks whether the vector is full.
     pub fn is_full(&self) -> bool {
+        debug_assert!(self.len <= N);
         self.len == N
     }
 
+    /// Appends a new element to the end of the vector *without checking whether the vector is already full*.
     pub unsafe fn push_unchecked(&mut self, value: T) {
         let _ = mem::replace(
             self.data.get_unchecked_mut(self.len),
@@ -68,6 +81,9 @@ impl<T, const N: usize> StaticVec<T, N> {
         self.len += 1;
     }
 
+    /// Appends a new element to the end of the vector.
+    ///
+    /// If the vector is already full then the element is returned.
     pub fn push(&mut self, value: T) -> Result<(), T> {
         if self.is_full() {
             Err(value)
@@ -77,11 +93,15 @@ impl<T, const N: usize> StaticVec<T, N> {
         }
     }
 
+    /// Takes a last element of the vector *without checking whether the vector is empty*.
     pub unsafe fn pop_unchecked(&mut self) -> T {
         self.len -= 1;
         mem::replace(self.data.get_unchecked_mut(self.len), MaybeUninit::uninit()).assume_init()
     }
 
+    /// Appends a new element to the end of the vector.
+    ///
+    /// If the vector is empty then `None` is returned.
     pub fn pop(&mut self) -> Option<T> {
         if self.is_empty() {
             None
@@ -90,36 +110,47 @@ impl<T, const N: usize> StaticVec<T, N> {
         }
     }
 
+    /// Truncates tne vector. Excess elements are simply dropped.
+    ///
+    /// If `new_len` is greater then vector length the methods simply does nothing.
     pub fn truncate(&mut self, new_len: usize) {
         while self.len > new_len {
             unsafe { mem::drop(self.pop_unchecked()) };
         }
     }
 
+    /// Drops all elements in the vector and sets its length to zero.
     pub fn clear(&mut self) {
         self.truncate(0);
     }
 
+    /// Slice of the vector content.
     pub fn as_slice(&self) -> &[T] {
         unsafe { ptr::read(&(&self.data[..self.len]) as *const _ as *const &[T]) }
     }
 
+    /// Mutable slice of the vector content.
     pub fn as_mut_slice(&mut self) -> &mut [T] {
         unsafe { ptr::read(&(&mut self.data[..self.len]) as *const _ as *const &mut [T]) }
     }
 
+    /// Appends elements from iterator to the vector until iterator ends or the vector is full.
     pub fn extend_from_iter<I: Iterator<Item = T>>(&mut self, iter: I) {
         for (x, _) in iter.zip(self.len..N) {
             unsafe { self.push_unchecked(x) };
         }
     }
 
+    /// Constructs a new vector with elements from the iterator.
+    ///
+    /// If iterator contains more elements than the vector capacity then excess elements remain in the iterator.
     pub fn from_iter<I: Iterator<Item = T>>(iter: I) -> Self {
         let mut self_ = Self::new();
         self_.extend_from_iter(iter);
         self_
     }
 
+    /// Transforms the vector into an iterator by values.
     pub fn into_iter(mut self) -> IntoIter<T, N> {
         let iter = IntoIter::new(
             mem::replace(&mut self.data, unsafe {
@@ -131,12 +162,22 @@ impl<T, const N: usize> StaticVec<T, N> {
         iter
     }
 
+    /// Returns iterator over references of vector elements.
     pub fn iter(&self) -> Iter<T> {
         self.as_slice().iter()
     }
 
+    /// Returns iterator over mutable references of vector elements.
     pub fn iter_mut(&mut self) -> IterMut<T> {
         self.as_mut_slice().iter_mut()
+    }
+
+    /// Constructs a new vector from array of values.
+    ///
+    /// *Panics if passed array size is greater than vector capacity.*
+    pub fn from_array<const M: usize>(array: [T; M]) -> Self {
+        assert!(M <= N); // TODO: Use static assert.
+        Self::from_iter(IntoIterator::into_iter(array))
     }
 }
 
@@ -225,14 +266,39 @@ impl<T, const N: usize> StaticVec<T, N>
 where
     T: Clone,
 {
+    /// Creates the vector filling it with the cloned value up to specified length.
+    ///
+    /// *Panics if `len` is greater than the vector capacity.*
+    pub fn fill(len: usize, value: T) -> Self {
+        assert!(len <= N);
+        let mut self_ = Self::new();
+        for _ in 0..len {
+            unsafe { self_.push_unchecked(value.clone()) };
+        }
+        self_
+    }
+
+    /// Appends elements from slice to the vector cloning them.
+    ///
+    /// If slice length is greater than free space in the vector then excess elements are simply ignored.
     pub fn extend_from_slice(&mut self, slice: &[T]) {
         self.extend_from_iter(slice.iter().cloned());
     }
 
+    /// Creates a new vector with cloned elements from slice.
+    ///
+    /// If slice length is greater than the vector capacity then excess elements are simply ignored.
     pub fn from_slice(slice: &[T]) -> Self {
         Self::from_iter(slice.iter().cloned())
     }
 
+    /// Resizes the vector to the specified length.
+    ///
+    /// If `new_len` is less than vector length the the vector is truncated.
+    ///
+    /// If `new_len` is greater than the vector length then vector is filled with `value` up to `new_len` length.
+    ///
+    /// *Panics if `new_len` is greater than the vector capacity.*
     pub fn resize(&mut self, new_len: usize, value: T) {
         if new_len <= self.len {
             self.truncate(new_len);

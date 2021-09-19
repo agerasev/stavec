@@ -22,7 +22,9 @@ fn full() {
     for i in 0..v.len() {
         assert_eq!(v[i], i as i32);
     }
-    // TODO: iterate
+    for (i, x) in v.iter().enumerate() {
+        assert_eq!(*x, i as i32);
+    }
 
     for (i, x) in v.as_slice().iter().enumerate() {
         assert_eq!(*x, i as i32);
@@ -47,7 +49,9 @@ fn push_pop() {
     for i in 0..v.len() {
         assert_eq!(v[i], i as i32);
     }
-    // TODO: iterate
+    for (i, x) in v.iter().enumerate() {
+        assert_eq!(*x, i as i32);
+    }
     for (i, x) in v.as_slice().iter().enumerate() {
         assert_eq!(*x, i as i32);
     }
@@ -58,7 +62,9 @@ fn push_pop() {
     for i in 0..v.len() {
         assert_eq!(v[i], i as i32);
     }
-    // TODO: iterate
+    for (i, x) in v.iter().enumerate() {
+        assert_eq!(*x, i as i32);
+    }
     for (i, x) in v.as_slice().iter().enumerate() {
         assert_eq!(*x, i as i32);
     }
@@ -70,7 +76,9 @@ fn push_pop() {
     for i in 0..v.len() {
         assert_eq!(v[i], i as i32);
     }
-    // TODO: iterate
+    for (i, x) in v.iter().enumerate() {
+        assert_eq!(*x, i as i32);
+    }
     for (i, x) in v.as_slice().iter().enumerate() {
         assert_eq!(*x, i as i32);
     }

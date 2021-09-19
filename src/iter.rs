@@ -3,7 +3,7 @@ use core::{
     ops::Range,
 };
 
-/// Iterator by values.
+/// Iterator by values of static vector.
 pub struct IntoIter<T, const N: usize> {
     data: [MaybeUninit<T>; N],
     range: Range<usize>,
