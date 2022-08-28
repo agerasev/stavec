@@ -99,7 +99,7 @@ impl<T, const N: usize> StaticVec<T, N> {
         mem::replace(self.data.get_unchecked_mut(self.len), MaybeUninit::uninit()).assume_init()
     }
 
-    /// Appends a new element to the end of the vector.
+    /// Removes and returns the last element of the vector.
     ///
     /// If the vector is empty then `None` is returned.
     pub fn pop(&mut self) -> Option<T> {
