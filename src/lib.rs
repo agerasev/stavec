@@ -110,7 +110,7 @@ impl<T, const N: usize> StaticVec<T, N> {
         }
     }
 
-    /// Truncates tne vector. Excess elements are simply dropped.
+    /// Truncates the vector. Excess elements are simply dropped.
     ///
     /// If `new_len` is greater then vector length the methods simply does nothing.
     pub fn truncate(&mut self, new_len: usize) {
