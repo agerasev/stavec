@@ -99,7 +99,7 @@ impl<T, const N: usize> StaticVec<T, N> {
         mem::replace(self.data.get_unchecked_mut(self.len), MaybeUninit::uninit()).assume_init()
     }
 
-    /// Appends a new element to the end of the vector.
+    /// Removes and returns the last element of the vector.
     ///
     /// If the vector is empty then `None` is returned.
     pub fn pop(&mut self) -> Option<T> {
@@ -110,7 +110,7 @@ impl<T, const N: usize> StaticVec<T, N> {
         }
     }
 
-    /// Truncates tne vector. Excess elements are simply dropped.
+    /// Truncates the vector. Excess elements are simply dropped.
     ///
     /// If `new_len` is greater then vector length the methods simply does nothing.
     pub fn truncate(&mut self, new_len: usize) {
