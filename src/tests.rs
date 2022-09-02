@@ -43,7 +43,7 @@ fn push_pop() {
     assert_eq!(v.len(), 0);
 
     for i in 0..3 {
-        assert_eq!(v.push(i as i32), Ok(()));
+        assert_eq!(v.try_push(i as i32), Ok(()));
     }
     assert_eq!(v.len(), 3);
     for i in 0..v.len() {
@@ -56,8 +56,8 @@ fn push_pop() {
         assert_eq!(*x, i as i32);
     }
 
-    assert_eq!(v.push(3), Ok(()));
-    assert_eq!(v.push(4), Err(4));
+    assert_eq!(v.try_push(3), Ok(()));
+    assert_eq!(v.try_push(4), Err(4));
     assert_eq!(v.len(), 4);
     for i in 0..v.len() {
         assert_eq!(v[i], i as i32);
@@ -98,11 +98,11 @@ fn drop() {
     assert_eq!(Rc::strong_count(&b), 1);
 
     let mut v = StaticVec::<Rc<()>, 4>::new();
-    v.push(a.clone()).unwrap();
-    v.push(a.clone()).unwrap();
-    v.push(b.clone()).unwrap();
-    v.push(b.clone()).unwrap();
-    v.push(b.clone()).unwrap_err();
+    v.try_push(a.clone()).unwrap();
+    v.try_push(a.clone()).unwrap();
+    v.try_push(b.clone()).unwrap();
+    v.try_push(b.clone()).unwrap();
+    v.try_push(b.clone()).unwrap_err();
     assert_eq!(Rc::strong_count(&a), 3);
     assert_eq!(Rc::strong_count(&b), 3);
 
@@ -142,7 +142,7 @@ fn fmt() {
     v.extend_from_slice(&[0, 1, 2]);
     assert_eq!(format!("{:?}", &v), "[0, 1, 2]");
 
-    v.push(3).unwrap();
+    v.try_push(3).unwrap();
     assert_eq!(format!("{:?}", &v), "[0, 1, 2, 3]");
 }
 

@@ -84,7 +84,7 @@ impl<T, const N: usize> StaticVec<T, N> {
     /// Appends a new element to the end of the vector.
     ///
     /// If the vector is already full then the element is returned.
-    pub fn push(&mut self, value: T) -> Result<(), T> {
+    pub fn try_push(&mut self, value: T) -> Result<(), T> {
         if self.is_full() {
             Err(value)
         } else {
