@@ -93,6 +93,14 @@ impl<T, const N: usize> StaticVec<T, N> {
         }
     }
 
+    /// Appends a new element to the end of the vector.
+    ///
+    /// Panics if the vector is already full.
+    pub fn push(&mut self, value: T) {
+        assert!(!self.is_full());
+        unsafe { self.push_unchecked(value) };
+    }
+
     /// Takes a last element of the vector *without checking whether the vector is empty*.
     pub unsafe fn pop_unchecked(&mut self) -> T {
         self.len -= 1;
