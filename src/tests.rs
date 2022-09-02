@@ -194,3 +194,19 @@ fn remove() {
     assert_eq!(v.remove(0), 1);
     assert_eq!(v.len(), 0);
 }
+
+#[test]
+fn array_conversion() {
+    let input = [1, 2, 3, 4];
+
+    // While feature(generic_arg_infer) is open, we cannot infer the capacity.
+    let v: StaticVec<_, 4> = input.into();
+    assert_eq!(v.len(), 4);
+    assert_eq!(v[0], 1);
+    assert_eq!(v[1], 2);
+    assert_eq!(v[2], 3);
+    assert_eq!(v[3], 4);
+
+    let output: [i32; 4] = v.into();
+    assert_eq!(output, input);
+}
