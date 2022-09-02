@@ -429,3 +429,22 @@ where
         Self::from_slice(slice)
     }
 }
+
+impl<T, const N: usize> From<[T; N]> for StaticVec<T, N> {
+    fn from(array: [T; N]) -> Self {
+        let mut vec = Self::new();
+        for element in array {
+            unsafe { vec.push_unchecked(element) };
+        }
+        vec
+    }
+}
+
+impl<T, const N: usize> From<StaticVec<T, N>> for [T; N] {
+    fn from(mut vec: StaticVec<T, N>) -> Self {
+        unsafe {
+            vec.len = 0;
+            ptr::read(vec.as_ptr() as *const [T; N])
+        }
+    }
+}
