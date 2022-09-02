@@ -98,10 +98,10 @@ fn drop() {
     assert_eq!(Rc::strong_count(&b), 1);
 
     let mut v = StaticVec::<Rc<()>, 4>::new();
-    v.try_push(a.clone()).unwrap();
-    v.try_push(a.clone()).unwrap();
-    v.try_push(b.clone()).unwrap();
-    v.try_push(b.clone()).unwrap();
+    v.push(a.clone());
+    v.push(a.clone());
+    v.push(b.clone());
+    v.push(b.clone());
     v.try_push(b.clone()).unwrap_err();
     assert_eq!(Rc::strong_count(&a), 3);
     assert_eq!(Rc::strong_count(&b), 3);
@@ -142,7 +142,7 @@ fn fmt() {
     v.extend_from_slice(&[0, 1, 2]);
     assert_eq!(format!("{:?}", &v), "[0, 1, 2]");
 
-    v.try_push(3).unwrap();
+    v.push(3);
     assert_eq!(format!("{:?}", &v), "[0, 1, 2, 3]");
 }
 
