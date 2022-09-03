@@ -2,6 +2,7 @@ use core::{
     convert::{AsMut, AsRef},
     mem::MaybeUninit,
 };
+use num_traits::{Bounded, FromPrimitive, ToPrimitive, Unsigned};
 
 pub unsafe trait Container<T>: AsRef<[MaybeUninit<T>]> + AsMut<[MaybeUninit<T>]> {}
 
@@ -18,3 +19,7 @@ unsafe impl<T, const N: usize> SizedContainer<T> for [MaybeUninit<T>; N] {
 }
 
 unsafe impl<T> Container<T> for [MaybeUninit<T>] {}
+
+pub trait Length: Unsigned + Copy + Sized + Ord + Bounded + ToPrimitive + FromPrimitive {}
+
+impl<T> Length for T where T: Unsigned + Copy + Sized + Ord + Bounded + ToPrimitive + FromPrimitive {}

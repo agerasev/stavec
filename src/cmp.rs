@@ -1,4 +1,4 @@
-use crate::{Container, GenericVec};
+use crate::{traits::Container, GenericVec};
 use core::cmp::Ordering;
 
 impl<T, C: Container<T> + ?Sized> PartialOrd for GenericVec<T, C>

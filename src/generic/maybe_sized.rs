@@ -1,5 +1,8 @@
 use super::GenericVec;
-use crate::Container;
+use crate::{
+    traits::{Container, Length},
+    utils::{slice_assume_init_mut, slice_assume_init_ref},
+};
 use core::{
     borrow::{Borrow, BorrowMut},
     convert::{AsMut, AsRef},
@@ -12,26 +15,27 @@ use core::{
     slice::SliceIndex,
     slice::{Iter, IterMut},
 };
+use num_traits::clamp_max;
 
-impl<T, C: Container<T> + ?Sized> GenericVec<T, C> {
+impl<T, C: Container<T> + ?Sized, L: Length> GenericVec<T, C, L> {
     pub fn capacity(&self) -> usize {
-        self.data.as_ref().len()
+        clamp_max(self.data.as_ref().len(), L::max_value().to_usize().unwrap())
     }
 
-    /// The number of elements in the vector. Must be less or equal to `CAPACITY`.
+    /// The number of elements in the vector. Must be less or equal to [`capacity()`](`Self::capacity`).
     pub fn len(&self) -> usize {
-        self.len
+        self.len.to_usize().unwrap()
     }
 
     /// Checks whether the vector is empty.
     pub fn is_empty(&self) -> bool {
-        self.len == 0
+        self.len.is_zero()
     }
 
     /// Checks whether the vector is full.
     pub fn is_full(&self) -> bool {
-        debug_assert!(self.len <= self.capacity());
-        self.len == self.capacity()
+        debug_assert!(self.len() <= self.capacity());
+        self.len() == self.capacity()
     }
 
     /// Appends a new element to the end of the vector *without checking whether the vector is already full*.
@@ -40,11 +44,12 @@ impl<T, C: Container<T> + ?Sized> GenericVec<T, C> {
     ///
     /// `push_unchecked` to the vector which is full is **undefined behavior**.
     pub unsafe fn push_unchecked(&mut self, value: T) {
+        let len = self.len();
         let _ = mem::replace(
-            self.data.as_mut().get_unchecked_mut(self.len),
+            self.data.as_mut().get_unchecked_mut(len),
             MaybeUninit::new(value),
         );
-        self.len += 1;
+        self.len = self.len + L::one();
     }
 
     /// Appends a new element to the end of the vector.
@@ -65,9 +70,10 @@ impl<T, C: Container<T> + ?Sized> GenericVec<T, C> {
     ///
     /// `pop_unchecked` from an empty vector is **undefined behavior**.
     pub unsafe fn pop_unchecked(&mut self) -> T {
-        self.len -= 1;
+        self.len = self.len - L::one();
+        let len = self.len();
         mem::replace(
-            self.data.as_mut().get_unchecked_mut(self.len),
+            self.data.as_mut().get_unchecked_mut(len),
             MaybeUninit::uninit(),
         )
         .assume_init()
@@ -88,7 +94,7 @@ impl<T, C: Container<T> + ?Sized> GenericVec<T, C> {
     ///
     /// If `new_len` is greater then vector length the methods simply does nothing.
     pub fn truncate(&mut self, new_len: usize) {
-        while self.len > new_len {
+        while self.len() > new_len {
             unsafe { mem::drop(self.pop_unchecked()) };
         }
     }
@@ -121,7 +127,7 @@ impl<T, C: Container<T> + ?Sized> GenericVec<T, C> {
                 // Shift everything down to fill in that spot.
                 ptr::copy(ptr.add(1), ptr, len - index - 1);
             }
-            self.len -= 1;
+            self.len = self.len - L::one();
             ret
         }
     }
@@ -146,7 +152,7 @@ impl<T, C: Container<T> + ?Sized> GenericVec<T, C> {
             let value = ptr::read(self.as_ptr().add(index));
             let base_ptr = self.as_mut_ptr();
             ptr::copy(base_ptr.add(len - 1), base_ptr.add(index), 1);
-            self.len -= 1;
+            self.len = self.len - L::one();
             value
         }
     }
@@ -158,17 +164,18 @@ impl<T, C: Container<T> + ?Sized> GenericVec<T, C> {
 
     /// Slice of the vector content.
     pub fn as_slice(&self) -> &[T] {
-        unsafe { ptr::read(&(&self.data.as_ref()[..self.len]) as *const _ as *const &[T]) }
+        unsafe { slice_assume_init_ref(self.data.as_ref().get_unchecked(..self.len())) }
     }
 
     /// Mutable slice of the vector content.
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        unsafe { ptr::read(&(&mut self.data.as_mut()[..self.len]) as *const _ as *const &mut [T]) }
+        let len = self.len();
+        unsafe { slice_assume_init_mut(self.data.as_mut().get_unchecked_mut(..len)) }
     }
 
     /// Appends elements from iterator to the vector until iterator ends or the vector is full.
     pub fn extend_from_iter<I: Iterator<Item = T>>(&mut self, iter: I) {
-        for (x, _) in iter.zip(self.len..self.capacity()) {
+        for (x, _) in iter.zip(self.len()..self.capacity()) {
             unsafe { self.push_unchecked(x) };
         }
     }
@@ -184,9 +191,9 @@ impl<T, C: Container<T> + ?Sized> GenericVec<T, C> {
     }
 }
 
-impl<T, C: Container<T> + ?Sized> Drop for GenericVec<T, C> {
+impl<T, C: Container<T> + ?Sized, L: Length> Drop for GenericVec<T, C, L> {
     fn drop(&mut self) {
-        for i in 0..self.len {
+        for i in 0..self.len() {
             unsafe {
                 mem::drop(
                     mem::replace(
@@ -200,7 +207,7 @@ impl<T, C: Container<T> + ?Sized> Drop for GenericVec<T, C> {
     }
 }
 
-impl<'a, T: 'a, C: Container<T> + ?Sized> IntoIterator for &'a GenericVec<T, C> {
+impl<'a, T: 'a, C: Container<T> + ?Sized, L: Length> IntoIterator for &'a GenericVec<T, C, L> {
     type Item = &'a T;
     type IntoIter = Iter<'a, T>;
 
@@ -209,7 +216,7 @@ impl<'a, T: 'a, C: Container<T> + ?Sized> IntoIterator for &'a GenericVec<T, C> 
     }
 }
 
-impl<'a, T: 'a, C: Container<T> + ?Sized> IntoIterator for &'a mut GenericVec<T, C> {
+impl<'a, T: 'a, C: Container<T> + ?Sized, L: Length> IntoIterator for &'a mut GenericVec<T, C, L> {
     type Item = &'a mut T;
     type IntoIter = IterMut<'a, T>;
 
@@ -218,7 +225,7 @@ impl<'a, T: 'a, C: Container<T> + ?Sized> IntoIterator for &'a mut GenericVec<T,
     }
 }
 
-impl<T, I, C: Container<T> + ?Sized> Index<I> for GenericVec<T, C>
+impl<T, I, C: Container<T> + ?Sized, L: Length> Index<I> for GenericVec<T, C, L>
 where
     I: SliceIndex<[T]>,
 {
@@ -229,7 +236,7 @@ where
     }
 }
 
-impl<T, I, C: Container<T> + ?Sized> IndexMut<I> for GenericVec<T, C>
+impl<T, I, C: Container<T> + ?Sized, L: Length> IndexMut<I> for GenericVec<T, C, L>
 where
     I: SliceIndex<[T]>,
 {
@@ -238,34 +245,7 @@ where
     }
 }
 
-impl<T: Clone, C: Container<T>> GenericVec<T, C> {
-    /// Appends elements from slice to the vector cloning them.
-    ///
-    /// If slice length is greater than free space in the vector then excess elements are simply ignored.
-    pub fn extend_from_slice(&mut self, slice: &[T]) {
-        self.extend_from_iter(slice.iter().cloned());
-    }
-
-    /// Resizes the vector to the specified length.
-    ///
-    /// If `new_len` is less than vector length the the vector is truncated.
-    ///
-    /// If `new_len` is greater than the vector length then vector is filled with `value` up to `new_len` length.
-    ///
-    /// *Panics if `new_len` is greater than the vector capacity.*
-    pub fn resize(&mut self, new_len: usize, value: T) {
-        if new_len <= self.len {
-            self.truncate(new_len);
-        } else {
-            assert!(new_len <= self.capacity());
-            for _ in self.len..new_len {
-                unsafe { self.push_unchecked(value.clone()) };
-            }
-        }
-    }
-}
-
-impl<T, C: Container<T> + ?Sized> Hash for GenericVec<T, C>
+impl<T, C: Container<T> + ?Sized, L: Length> Hash for GenericVec<T, C, L>
 where
     T: Hash,
 {
@@ -274,7 +254,7 @@ where
     }
 }
 
-impl<T, C: Container<T> + ?Sized> fmt::Debug for GenericVec<T, C>
+impl<T, C: Container<T> + ?Sized, L: Length> fmt::Debug for GenericVec<T, C, L>
 where
     T: fmt::Debug,
 {
@@ -283,7 +263,7 @@ where
     }
 }
 
-impl<T, C: Container<T> + ?Sized> Deref for GenericVec<T, C> {
+impl<T, C: Container<T> + ?Sized, L: Length> Deref for GenericVec<T, C, L> {
     type Target = [T];
 
     fn deref(&self) -> &[T] {
@@ -291,43 +271,43 @@ impl<T, C: Container<T> + ?Sized> Deref for GenericVec<T, C> {
     }
 }
 
-impl<T, C: Container<T> + ?Sized> DerefMut for GenericVec<T, C> {
+impl<T, C: Container<T> + ?Sized, L: Length> DerefMut for GenericVec<T, C, L> {
     fn deref_mut(&mut self) -> &mut [T] {
         self.as_mut_slice()
     }
 }
 
-impl<T, C: Container<T> + ?Sized> AsRef<GenericVec<T, C>> for GenericVec<T, C> {
-    fn as_ref(&self) -> &GenericVec<T, C> {
+impl<T, C: Container<T> + ?Sized, L: Length> AsRef<GenericVec<T, C, L>> for GenericVec<T, C, L> {
+    fn as_ref(&self) -> &GenericVec<T, C, L> {
         self
     }
 }
 
-impl<T, C: Container<T> + ?Sized> AsRef<[T]> for GenericVec<T, C> {
+impl<T, C: Container<T> + ?Sized, L: Length> AsRef<[T]> for GenericVec<T, C, L> {
     fn as_ref(&self) -> &[T] {
         self.as_slice()
     }
 }
 
-impl<T, C: Container<T> + ?Sized> AsMut<GenericVec<T, C>> for GenericVec<T, C> {
-    fn as_mut(&mut self) -> &mut GenericVec<T, C> {
+impl<T, C: Container<T> + ?Sized, L: Length> AsMut<GenericVec<T, C, L>> for GenericVec<T, C, L> {
+    fn as_mut(&mut self) -> &mut GenericVec<T, C, L> {
         self
     }
 }
 
-impl<T, C: Container<T> + ?Sized> AsMut<[T]> for GenericVec<T, C> {
+impl<T, C: Container<T> + ?Sized, L: Length> AsMut<[T]> for GenericVec<T, C, L> {
     fn as_mut(&mut self) -> &mut [T] {
         self.as_mut_slice()
     }
 }
 
-impl<T, C: Container<T> + ?Sized> Borrow<[T]> for GenericVec<T, C> {
+impl<T, C: Container<T> + ?Sized, L: Length> Borrow<[T]> for GenericVec<T, C, L> {
     fn borrow(&self) -> &[T] {
         self.as_slice()
     }
 }
 
-impl<T, C: Container<T> + ?Sized> BorrowMut<[T]> for GenericVec<T, C> {
+impl<T, C: Container<T> + ?Sized, L: Length> BorrowMut<[T]> for GenericVec<T, C, L> {
     fn borrow_mut(&mut self) -> &mut [T] {
         self.as_mut_slice()
     }
