@@ -54,7 +54,7 @@ impl<T, C: Container<T> + ?Sized, L: Length> GenericVec<T, C, L> {
             self.data.as_mut().get_unchecked_mut(len),
             MaybeUninit::new(value),
         );
-        self.len = self.len + L::one();
+        self.len += L::one();
     }
 
     /// Appends a new element to the end of the vector.
@@ -75,7 +75,7 @@ impl<T, C: Container<T> + ?Sized, L: Length> GenericVec<T, C, L> {
     ///
     /// `pop_unchecked` from an empty vector is **undefined behavior**.
     pub unsafe fn pop_unchecked(&mut self) -> T {
-        self.len = self.len - L::one();
+        self.len -= L::one();
         let len = self.len();
         mem::replace(
             self.data.as_mut().get_unchecked_mut(len),
@@ -132,7 +132,7 @@ impl<T, C: Container<T> + ?Sized, L: Length> GenericVec<T, C, L> {
                 // Shift everything down to fill in that spot.
                 ptr::copy(ptr.add(1), ptr, len - index - 1);
             }
-            self.len = self.len - L::one();
+            self.len -= L::one();
             ret
         }
     }
@@ -157,7 +157,7 @@ impl<T, C: Container<T> + ?Sized, L: Length> GenericVec<T, C, L> {
             let value = ptr::read(self.as_ptr().add(index));
             let base_ptr = self.as_mut_ptr();
             ptr::copy(base_ptr.add(len - 1), base_ptr.add(index), 1);
-            self.len = self.len - L::one();
+            self.len -= L::one();
             value
         }
     }
@@ -231,7 +231,7 @@ impl<T: Clone, C: Container<T> + ?Sized, L: Length> GenericVec<T, C, L> {
                 slice.get_unchecked(..min_len),
             );
         }
-        self.len = self.len + L::from_usize(min_len).unwrap();
+        self.len += L::from_usize(min_len).unwrap();
         min_len
     }
 

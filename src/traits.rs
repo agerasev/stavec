@@ -2,7 +2,7 @@ use core::{
     convert::{AsMut, AsRef},
     mem::MaybeUninit,
 };
-use num_traits::{Bounded, FromPrimitive, ToPrimitive, Unsigned};
+use num_traits::{Bounded, FromPrimitive, NumAssign, ToPrimitive, Unsigned};
 
 /// Abstract container. May be unsized.
 ///
@@ -32,6 +32,12 @@ unsafe impl<T, const N: usize> SizedContainer<T> for [MaybeUninit<T>; N] {
 unsafe impl<T> Container<T> for [MaybeUninit<T>] {}
 
 /// Abstract type that could be used as vector length.
-pub trait Length: Unsigned + Copy + Sized + Ord + Bounded + ToPrimitive + FromPrimitive {}
+pub trait Length:
+    Unsigned + NumAssign + Copy + Sized + Ord + Bounded + ToPrimitive + FromPrimitive
+{
+}
 
-impl<T> Length for T where T: Unsigned + Copy + Sized + Ord + Bounded + ToPrimitive + FromPrimitive {}
+impl<T> Length for T where
+    T: Unsigned + NumAssign + Copy + Sized + Ord + Bounded + ToPrimitive + FromPrimitive
+{
+}

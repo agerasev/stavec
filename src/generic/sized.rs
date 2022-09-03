@@ -15,11 +15,11 @@ impl<T, C: SizedContainer<T>, L: Length> FromIterator<T> for GenericVec<T, C, L>
 
 impl<T, C: SizedContainer<T>, L: Length> IntoIterator for GenericVec<T, C, L> {
     type Item = T;
-    type IntoIter = IntoIter<T, C>;
+    type IntoIter = IntoIter<T, C, L>;
 
     fn into_iter(self) -> Self::IntoIter {
         let (data, len) = unsafe { self.into_raw_parts() };
-        IntoIter::new(data, 0..len.to_usize().unwrap())
+        IntoIter::new(data, L::zero()..len)
     }
 }
 

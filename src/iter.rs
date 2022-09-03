@@ -1,4 +1,4 @@
-use crate::traits::Container;
+use crate::traits::{Container, Length, SizedContainer};
 use core::{
     marker::PhantomData,
     mem::{self, MaybeUninit},
@@ -6,15 +6,15 @@ use core::{
 };
 
 /// Iterator by values of static vector.
-pub struct IntoIter<T, C: Container<T> + ?Sized> {
+pub struct IntoIter<T, C: Container<T> + ?Sized, L: Length> {
     _phantom: PhantomData<T>,
-    range: Range<usize>,
+    range: Range<L>,
     data: C,
 }
 
-impl<T, C: Container<T>> IntoIter<T, C> {
-    pub(crate) fn new(data: C, range: Range<usize>) -> Self {
-        debug_assert!(range.end <= data.as_ref().len());
+impl<T, C: SizedContainer<T>, L: Length> IntoIter<T, C, L> {
+    pub(crate) fn new(data: C, range: Range<L>) -> Self {
+        debug_assert!(range.end <= L::from_usize(data.as_ref().len()).unwrap());
         Self {
             _phantom: PhantomData,
             data,
@@ -23,19 +23,21 @@ impl<T, C: Container<T>> IntoIter<T, C> {
     }
 }
 
-impl<T, C: Container<T> + ?Sized> Iterator for IntoIter<T, C> {
+impl<T, C: Container<T> + ?Sized, L: Length> Iterator for IntoIter<T, C, L> {
     type Item = T;
 
     fn next(&mut self) -> Option<T> {
         if self.range.start < self.range.end {
             let value = unsafe {
                 mem::replace(
-                    self.data.as_mut().get_unchecked_mut(self.range.start),
+                    self.data
+                        .as_mut()
+                        .get_unchecked_mut(self.range.start.to_usize().unwrap()),
                     MaybeUninit::uninit(),
                 )
                 .assume_init()
             };
-            self.range.start += 1;
+            self.range.start += L::one();
             Some(value)
         } else {
             None
@@ -43,10 +45,11 @@ impl<T, C: Container<T> + ?Sized> Iterator for IntoIter<T, C> {
     }
 }
 
-impl<T, C: Container<T> + ?Sized> Drop for IntoIter<T, C> {
+impl<T, C: Container<T> + ?Sized, L: Length> Drop for IntoIter<T, C, L> {
     fn drop(&mut self) {
+        let range = self.range.start.to_usize().unwrap()..self.range.end.to_usize().unwrap();
         unsafe {
-            for x in self.data.as_mut().get_unchecked_mut(self.range.clone()) {
+            for x in self.data.as_mut().get_unchecked_mut(range) {
                 mem::drop(mem::replace(x, MaybeUninit::uninit()).assume_init());
             }
         }
