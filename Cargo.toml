@@ -1,6 +1,6 @@
 [package]
 name = "stavec"
-version = "0.1.2"
+version = "0.2.0-rc.0"
 edition = "2018"
 
 description = "Stack-allocated vector with static capacity"
