@@ -19,6 +19,22 @@ pub struct GenericVec<T, C: Container<T> + ?Sized, L: Length = usize> {
     data: C,
 }
 
+impl<T, C: Container<T> + ?Sized, L: Length> GenericVec<T, C, L> {
+    /// Provides an access to underlying container.
+    pub fn data(&self) -> &C {
+        &self.data
+    }
+
+    /// Provides a mutable access to underlying container.
+    ///
+    /// # Safety
+    ///
+    /// Items with indices lower than [`len()`](`Self::len`) must remain initialized, other items must remain un-initialized.
+    pub unsafe fn data_mut(&mut self) -> &mut C {
+        &mut self.data
+    }
+}
+
 impl<T, C: SizedContainer<T>, L: Length> GenericVec<T, C, L> {
     /// Construct a vector from container and length.
     ///
