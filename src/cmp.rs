@@ -1,7 +1,7 @@
-use crate::StaticVec;
+use crate::{Container, GenericVec};
 use core::cmp::Ordering;
 
-impl<T, const N: usize> PartialOrd for StaticVec<T, N>
+impl<T, C: Container<T> + ?Sized> PartialOrd for GenericVec<T, C>
 where
     T: PartialOrd,
 {
@@ -10,7 +10,7 @@ where
     }
 }
 
-impl<T, const N: usize> Ord for StaticVec<T, N>
+impl<T, C: Container<T> + ?Sized> Ord for GenericVec<T, C>
 where
     T: Ord,
 {
@@ -19,7 +19,7 @@ where
     }
 }
 
-impl<T, const N: usize> PartialEq for StaticVec<T, N>
+impl<T, C: Container<T> + ?Sized> PartialEq for GenericVec<T, C>
 where
     T: PartialEq,
 {
@@ -28,9 +28,9 @@ where
     }
 }
 
-impl<T, const N: usize> Eq for StaticVec<T, N> where T: Eq {}
+impl<T, C: Container<T> + ?Sized> Eq for GenericVec<T, C> where T: Eq {}
 
-impl<T, const M: usize, const N: usize> PartialEq<[T; M]> for StaticVec<T, N>
+impl<T, const M: usize, C: Container<T> + ?Sized> PartialEq<[T; M]> for GenericVec<T, C>
 where
     T: PartialEq,
 {
@@ -39,7 +39,7 @@ where
     }
 }
 
-impl<T, const N: usize> PartialEq<[T]> for StaticVec<T, N>
+impl<T, C: Container<T> + ?Sized> PartialEq<[T]> for GenericVec<T, C>
 where
     T: PartialEq,
 {
@@ -48,7 +48,7 @@ where
     }
 }
 
-impl<T, const N: usize> PartialEq<&[T]> for StaticVec<T, N>
+impl<T, C: Container<T> + ?Sized> PartialEq<&[T]> for GenericVec<T, C>
 where
     T: PartialEq,
 {
@@ -57,7 +57,7 @@ where
     }
 }
 
-impl<T, const N: usize> PartialEq<&mut [T]> for StaticVec<T, N>
+impl<T, C: Container<T> + ?Sized> PartialEq<&mut [T]> for GenericVec<T, C>
 where
     T: PartialEq,
 {
@@ -67,7 +67,7 @@ where
 }
 
 #[cfg(feature = "std")]
-impl<T, const N: usize> PartialEq<std::vec::Vec<T>> for StaticVec<T, N>
+impl<T, C: Container<T> + ?Sized> PartialEq<std::vec::Vec<T>> for GenericVec<T, C>
 where
     T: PartialEq,
 {

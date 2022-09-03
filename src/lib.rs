@@ -4,7 +4,9 @@
 extern crate std;
 
 mod cmp;
+mod container;
 mod iter;
+mod static_;
 
 #[cfg(test)]
 mod tests;
@@ -15,6 +17,7 @@ use core::{
     fmt,
     hash::{Hash, Hasher},
     iter::{FromIterator, IntoIterator},
+    marker::PhantomData,
     mem::{self, MaybeUninit},
     ops::{Deref, DerefMut, Index, IndexMut},
     ptr,
@@ -22,38 +25,33 @@ use core::{
     slice::{Iter, IterMut},
 };
 
+pub use container::{Container, SizedContainer};
 pub use iter::IntoIter;
+pub use static_::StaticVec;
 
-/// Stack-allocated vector with static capacity.
-pub struct StaticVec<T, const N: usize> {
-    data: [MaybeUninit<T>; N],
+pub struct GenericVec<T, C: Container<T> + ?Sized> {
+    _phantom: PhantomData<T>,
     len: usize,
+    data: C,
 }
 
-impl<T, const N: usize> StaticVec<T, N> {
-    /// Maximum capacity of the vector.
-    pub const CAPACITY: usize = N;
-
-    /// Creates an empty vector.
-    pub fn new() -> Self {
+impl<T, C: SizedContainer<T>> GenericVec<T, C> {
+    pub unsafe fn from_raw_parts(data: C, len: usize) -> Self {
         Self {
-            data: unsafe { MaybeUninit::uninit().assume_init() },
-            len: 0,
+            _phantom: PhantomData,
+            len,
+            data,
         }
     }
 
-    /// Creates the vector filling it with the value returned from closure up to specified length.
-    ///
-    /// The vector is filled sequentially by subsequent closure calls.
-    ///
-    /// *Panics if `len` is greater than the vector capacity.*
-    pub fn fill_with<F: Fn() -> T>(len: usize, func: F) -> Self {
-        assert!(len <= N);
-        let mut self_ = Self::new();
-        for _ in 0..len {
-            unsafe { self_.push_unchecked(func()) };
-        }
-        self_
+    pub fn new() -> Self {
+        unsafe { Self::from_raw_parts(C::new_uninit(), 0) }
+    }
+}
+
+impl<T, C: Container<T> + ?Sized> GenericVec<T, C> {
+    pub fn capacity(&self) -> usize {
+        self.data.as_ref().len()
     }
 
     /// The number of elements in the vector. Must be less or equal to `CAPACITY`.
@@ -68,8 +66,8 @@ impl<T, const N: usize> StaticVec<T, N> {
 
     /// Checks whether the vector is full.
     pub fn is_full(&self) -> bool {
-        debug_assert!(self.len <= N);
-        self.len == N
+        debug_assert!(self.len <= self.capacity());
+        self.len == self.capacity()
     }
 
     /// Appends a new element to the end of the vector *without checking whether the vector is already full*.
@@ -79,7 +77,7 @@ impl<T, const N: usize> StaticVec<T, N> {
     /// `push_unchecked` to the vector which is full is **undefined behavior**.
     pub unsafe fn push_unchecked(&mut self, value: T) {
         let _ = mem::replace(
-            self.data.get_unchecked_mut(self.len),
+            self.data.as_mut().get_unchecked_mut(self.len),
             MaybeUninit::new(value),
         );
         self.len += 1;
@@ -104,7 +102,11 @@ impl<T, const N: usize> StaticVec<T, N> {
     /// `pop_unchecked` from an empty vector is **undefined behavior**.
     pub unsafe fn pop_unchecked(&mut self) -> T {
         self.len -= 1;
-        mem::replace(self.data.get_unchecked_mut(self.len), MaybeUninit::uninit()).assume_init()
+        mem::replace(
+            self.data.as_mut().get_unchecked_mut(self.len),
+            MaybeUninit::uninit(),
+        )
+        .assume_init()
     }
 
     /// Removes and returns the last element of the vector.
@@ -192,17 +194,17 @@ impl<T, const N: usize> StaticVec<T, N> {
 
     /// Slice of the vector content.
     pub fn as_slice(&self) -> &[T] {
-        unsafe { ptr::read(&(&self.data[..self.len]) as *const _ as *const &[T]) }
+        unsafe { ptr::read(&(&self.data.as_ref()[..self.len]) as *const _ as *const &[T]) }
     }
 
     /// Mutable slice of the vector content.
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        unsafe { ptr::read(&(&mut self.data[..self.len]) as *const _ as *const &mut [T]) }
+        unsafe { ptr::read(&(&mut self.data.as_mut()[..self.len]) as *const _ as *const &mut [T]) }
     }
 
     /// Appends elements from iterator to the vector until iterator ends or the vector is full.
     pub fn extend_from_iter<I: Iterator<Item = T>>(&mut self, iter: I) {
-        for (x, _) in iter.zip(self.len..N) {
+        for (x, _) in iter.zip(self.len..self.capacity()) {
             unsafe { self.push_unchecked(x) };
         }
     }
@@ -216,30 +218,25 @@ impl<T, const N: usize> StaticVec<T, N> {
     pub fn iter_mut(&mut self) -> IterMut<T> {
         self.as_mut_slice().iter_mut()
     }
-
-    /// Constructs a new vector from array of values.
-    ///
-    /// *Panics if passed array size is greater than vector capacity.*
-    pub fn from_array<const M: usize>(array: [T; M]) -> Self {
-        assert!(M <= N); // TODO: Use static assert.
-        Self::from_iter(IntoIterator::into_iter(array))
-    }
 }
 
-impl<T, const N: usize> Drop for StaticVec<T, N> {
+impl<T, C: Container<T> + ?Sized> Drop for GenericVec<T, C> {
     fn drop(&mut self) {
         for i in 0..self.len {
             unsafe {
                 mem::drop(
-                    mem::replace(self.data.get_unchecked_mut(i), MaybeUninit::uninit())
-                        .assume_init(),
+                    mem::replace(
+                        self.data.as_mut().get_unchecked_mut(i),
+                        MaybeUninit::uninit(),
+                    )
+                    .assume_init(),
                 );
             }
         }
     }
 }
 
-impl<T, const N: usize> FromIterator<T> for StaticVec<T, N> {
+impl<T, C: SizedContainer<T>> FromIterator<T> for GenericVec<T, C> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut self_ = Self::new();
         self_.extend_from_iter(iter.into_iter());
@@ -247,23 +244,18 @@ impl<T, const N: usize> FromIterator<T> for StaticVec<T, N> {
     }
 }
 
-impl<T, const N: usize> IntoIterator for StaticVec<T, N> {
+impl<T, C: SizedContainer<T>> IntoIterator for GenericVec<T, C> {
     type Item = T;
-    type IntoIter = IntoIter<T, N>;
+    type IntoIter = IntoIter<T, C>;
 
     fn into_iter(mut self) -> Self::IntoIter {
-        let iter = IntoIter::new(
-            mem::replace(&mut self.data, unsafe {
-                MaybeUninit::uninit().assume_init()
-            }),
-            0..self.len,
-        );
+        let iter = IntoIter::new(mem::replace(&mut self.data, C::new_uninit()), 0..self.len);
         mem::forget(self);
         iter
     }
 }
 
-impl<'a, T: 'a, const N: usize> IntoIterator for &'a StaticVec<T, N> {
+impl<'a, T: 'a, C: Container<T> + ?Sized> IntoIterator for &'a GenericVec<T, C> {
     type Item = &'a T;
     type IntoIter = Iter<'a, T>;
 
@@ -272,7 +264,7 @@ impl<'a, T: 'a, const N: usize> IntoIterator for &'a StaticVec<T, N> {
     }
 }
 
-impl<'a, T: 'a, const N: usize> IntoIterator for &'a mut StaticVec<T, N> {
+impl<'a, T: 'a, C: Container<T> + ?Sized> IntoIterator for &'a mut GenericVec<T, C> {
     type Item = &'a mut T;
     type IntoIter = IterMut<'a, T>;
 
@@ -281,7 +273,7 @@ impl<'a, T: 'a, const N: usize> IntoIterator for &'a mut StaticVec<T, N> {
     }
 }
 
-impl<T, I, const N: usize> Index<I> for StaticVec<T, N>
+impl<T, I, C: Container<T> + ?Sized> Index<I> for GenericVec<T, C>
 where
     I: SliceIndex<[T]>,
 {
@@ -292,7 +284,7 @@ where
     }
 }
 
-impl<T, I, const N: usize> IndexMut<I> for StaticVec<T, N>
+impl<T, I, C: Container<T> + ?Sized> IndexMut<I> for GenericVec<T, C>
 where
     I: SliceIndex<[T]>,
 {
@@ -301,49 +293,24 @@ where
     }
 }
 
-impl<T, const N: usize> Default for StaticVec<T, N> {
+impl<T, C: SizedContainer<T>> Default for GenericVec<T, C> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T, const N: usize> Clone for StaticVec<T, N>
-where
-    T: Clone,
-{
+impl<T: Clone, C: SizedContainer<T>> Clone for GenericVec<T, C> {
     fn clone(&self) -> Self {
         Self::from_iter(self.iter().cloned())
     }
 }
 
-impl<T, const N: usize> StaticVec<T, N>
-where
-    T: Clone,
-{
-    /// Creates the vector filling it with the cloned value up to specified length.
-    ///
-    /// *Panics if `len` is greater than the vector capacity.*
-    pub fn fill(len: usize, value: T) -> Self {
-        assert!(len <= N);
-        let mut self_ = Self::new();
-        for _ in 0..len {
-            unsafe { self_.push_unchecked(value.clone()) };
-        }
-        self_
-    }
-
+impl<T: Clone, C: Container<T>> GenericVec<T, C> {
     /// Appends elements from slice to the vector cloning them.
     ///
     /// If slice length is greater than free space in the vector then excess elements are simply ignored.
     pub fn extend_from_slice(&mut self, slice: &[T]) {
         self.extend_from_iter(slice.iter().cloned());
-    }
-
-    /// Creates a new vector with cloned elements from slice.
-    ///
-    /// If slice length is greater than the vector capacity then excess elements are simply ignored.
-    pub fn from_slice(slice: &[T]) -> Self {
-        Self::from_iter(slice.iter().cloned())
     }
 
     /// Resizes the vector to the specified length.
@@ -357,7 +324,7 @@ where
         if new_len <= self.len {
             self.truncate(new_len);
         } else {
-            assert!(new_len <= Self::CAPACITY);
+            assert!(new_len <= self.capacity());
             for _ in self.len..new_len {
                 unsafe { self.push_unchecked(value.clone()) };
             }
@@ -365,7 +332,16 @@ where
     }
 }
 
-impl<T, const N: usize> Hash for StaticVec<T, N>
+impl<T: Clone, C: SizedContainer<T>> GenericVec<T, C> {
+    /// Creates a new vector with cloned elements from slice.
+    ///
+    /// If slice length is greater than the vector capacity then excess elements are simply ignored.
+    pub fn from_slice(slice: &[T]) -> Self {
+        Self::from_iter(slice.iter().cloned())
+    }
+}
+
+impl<T, C: Container<T> + ?Sized> Hash for GenericVec<T, C>
 where
     T: Hash,
 {
@@ -374,7 +350,7 @@ where
     }
 }
 
-impl<T, const N: usize> fmt::Debug for StaticVec<T, N>
+impl<T, C: Container<T> + ?Sized> fmt::Debug for GenericVec<T, C>
 where
     T: fmt::Debug,
 {
@@ -383,7 +359,7 @@ where
     }
 }
 
-impl<T, const N: usize> Deref for StaticVec<T, N> {
+impl<T, C: Container<T> + ?Sized> Deref for GenericVec<T, C> {
     type Target = [T];
 
     fn deref(&self) -> &[T] {
@@ -391,49 +367,49 @@ impl<T, const N: usize> Deref for StaticVec<T, N> {
     }
 }
 
-impl<T, const N: usize> DerefMut for StaticVec<T, N> {
+impl<T, C: Container<T> + ?Sized> DerefMut for GenericVec<T, C> {
     fn deref_mut(&mut self) -> &mut [T] {
         self.as_mut_slice()
     }
 }
 
-impl<T, const N: usize> AsRef<StaticVec<T, N>> for StaticVec<T, N> {
-    fn as_ref(&self) -> &StaticVec<T, N> {
+impl<T, C: Container<T> + ?Sized> AsRef<GenericVec<T, C>> for GenericVec<T, C> {
+    fn as_ref(&self) -> &GenericVec<T, C> {
         self
     }
 }
 
-impl<T, const N: usize> AsRef<[T]> for StaticVec<T, N> {
+impl<T, C: Container<T> + ?Sized> AsRef<[T]> for GenericVec<T, C> {
     fn as_ref(&self) -> &[T] {
         self.as_slice()
     }
 }
 
-impl<T, const N: usize> AsMut<StaticVec<T, N>> for StaticVec<T, N> {
-    fn as_mut(&mut self) -> &mut StaticVec<T, N> {
+impl<T, C: Container<T> + ?Sized> AsMut<GenericVec<T, C>> for GenericVec<T, C> {
+    fn as_mut(&mut self) -> &mut GenericVec<T, C> {
         self
     }
 }
 
-impl<T, const N: usize> AsMut<[T]> for StaticVec<T, N> {
+impl<T, C: Container<T> + ?Sized> AsMut<[T]> for GenericVec<T, C> {
     fn as_mut(&mut self) -> &mut [T] {
         self.as_mut_slice()
     }
 }
 
-impl<T, const N: usize> Borrow<[T]> for StaticVec<T, N> {
+impl<T, C: Container<T> + ?Sized> Borrow<[T]> for GenericVec<T, C> {
     fn borrow(&self) -> &[T] {
         self.as_slice()
     }
 }
 
-impl<T, const N: usize> BorrowMut<[T]> for StaticVec<T, N> {
+impl<T, C: Container<T> + ?Sized> BorrowMut<[T]> for GenericVec<T, C> {
     fn borrow_mut(&mut self) -> &mut [T] {
         self.as_mut_slice()
     }
 }
 
-impl<T, const N: usize> From<&[T]> for StaticVec<T, N>
+impl<T, C: SizedContainer<T>> From<&[T]> for GenericVec<T, C>
 where
     T: Clone,
 {
@@ -442,7 +418,7 @@ where
     }
 }
 
-impl<T, const N: usize> From<&mut [T]> for StaticVec<T, N>
+impl<T, C: SizedContainer<T>> From<&mut [T]> for GenericVec<T, C>
 where
     T: Clone,
 {
