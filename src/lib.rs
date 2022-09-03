@@ -152,6 +152,31 @@ impl<T, const N: usize> StaticVec<T, N> {
         }
     }
 
+    /// Removes an element from the vector and returns it.
+    ///
+    /// The removed element is replaced by the last element of the vector.
+    ///
+    /// This does not preserve ordering, but is *O*(1).
+    /// If you need to preserve the element order, use `remove` instead.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is out of bounds.
+    pub fn swap_remove(&mut self, index: usize) -> T {
+        let len = self.len();
+        assert!(index < len);
+        unsafe {
+            // We replace self[index] with the last element. Note that if the
+            // bounds check above succeeds there must be a last element (which
+            // can be self[index] itself).
+            let value = ptr::read(self.as_ptr().add(index));
+            let base_ptr = self.as_mut_ptr();
+            ptr::copy(base_ptr.add(len - 1), base_ptr.add(index), 1);
+            self.len -= 1;
+            value
+        }
+    }
+
     /// Drops all elements in the vector and sets its length to zero.
     pub fn clear(&mut self) {
         self.truncate(0);
