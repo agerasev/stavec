@@ -308,19 +308,13 @@ where
     }
 }
 
-impl<T, C: Container<T> + ?Sized, L: Length> Hash for GenericVec<T, C, L>
-where
-    T: Hash,
-{
+impl<T: Hash, C: Container<T> + ?Sized, L: Length> Hash for GenericVec<T, C, L> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.as_slice().hash(state)
     }
 }
 
-impl<T, C: Container<T> + ?Sized, L: Length> fmt::Debug for GenericVec<T, C, L>
-where
-    T: fmt::Debug,
-{
+impl<T: fmt::Debug, C: Container<T> + ?Sized, L: Length> fmt::Debug for GenericVec<T, C, L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         self.as_slice().fmt(f)
     }
