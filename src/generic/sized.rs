@@ -13,33 +13,6 @@ impl<T, C: SizedContainer<T>, L: Length> FromIterator<T> for GenericVec<T, C, L>
     }
 }
 
-impl<T: Clone, C: SizedContainer<T>, L: Length> GenericVec<T, C, L> {
-    /// Appends elements from slice to the vector cloning them.
-    ///
-    /// If slice length is greater than free space in the vector then excess elements are simply ignored.
-    pub fn extend_from_slice(&mut self, slice: &[T]) {
-        self.extend_from_iter(slice.iter().cloned());
-    }
-
-    /// Resizes the vector to the specified length.
-    ///
-    /// If `new_len` is less than vector length the the vector is truncated.
-    ///
-    /// If `new_len` is greater than the vector length then vector is filled with `value` up to `new_len` length.
-    ///
-    /// *Panics if `new_len` is greater than the vector capacity.*
-    pub fn resize(&mut self, new_len: usize, value: T) {
-        if new_len <= self.len() {
-            self.truncate(new_len);
-        } else {
-            assert!(new_len <= self.capacity());
-            for _ in self.len()..new_len {
-                unsafe { self.push_unchecked(value.clone()) };
-            }
-        }
-    }
-}
-
 impl<T, C: SizedContainer<T>, L: Length> IntoIterator for GenericVec<T, C, L> {
     type Item = T;
     type IntoIter = IntoIter<T, C>;

@@ -1,7 +1,7 @@
 use super::GenericVec;
 use crate::{
     traits::{Container, Length},
-    utils::{slice_assume_init_mut, slice_assume_init_ref},
+    utils::{slice_assume_init_mut, slice_assume_init_ref, uninit_write_slice_cloned},
 };
 use core::{
     borrow::{Borrow, BorrowMut},
@@ -25,6 +25,11 @@ impl<T, C: Container<T> + ?Sized, L: Length> GenericVec<T, C, L> {
     /// The number of elements in the vector. Must be less or equal to [`capacity()`](`Self::capacity`).
     pub fn len(&self) -> usize {
         self.len.to_usize().unwrap()
+    }
+
+    /// Number of remaining free places in the vector.
+    pub fn remaining(&self) -> usize {
+        self.capacity() - self.len.to_usize().unwrap()
     }
 
     /// Checks whether the vector is empty.
@@ -157,7 +162,7 @@ impl<T, C: Container<T> + ?Sized, L: Length> GenericVec<T, C, L> {
         }
     }
 
-    /// Drops all elements in the vector and sets its length to zero.
+    /// Drop all elements in the vector and set its length to zero.
     pub fn clear(&mut self) {
         self.truncate(0);
     }
@@ -173,11 +178,31 @@ impl<T, C: Container<T> + ?Sized, L: Length> GenericVec<T, C, L> {
         unsafe { slice_assume_init_mut(self.data.as_mut().get_unchecked_mut(..len)) }
     }
 
+    /// Slice of remaining free space in vector. All items are un-initialized.
+    pub fn free_space_as_slice(&self) -> &[MaybeUninit<T>] {
+        unsafe {
+            self.data
+                .as_ref()
+                .get_unchecked(self.len()..self.capacity())
+        }
+    }
+
+    /// Mutable slice of remaining free space in vector. All items are un-initialized.
+    pub fn free_space_as_mut_slice(&mut self) -> &mut [MaybeUninit<T>] {
+        let (len, cap) = (self.len(), self.capacity());
+        unsafe { self.data.as_mut().get_unchecked_mut(len..cap) }
+    }
+
     /// Appends elements from iterator to the vector until iterator ends or the vector is full.
-    pub fn extend_from_iter<I: Iterator<Item = T>>(&mut self, iter: I) {
+    ///
+    /// Returns a number of elements being appended.
+    pub fn extend_from_iter<I: Iterator<Item = T>>(&mut self, iter: I) -> usize {
+        let mut counter = 0;
         for (x, _) in iter.zip(self.len()..self.capacity()) {
             unsafe { self.push_unchecked(x) };
+            counter += 1;
         }
+        counter
     }
 
     /// Returns iterator over references of vector elements.
@@ -188,6 +213,44 @@ impl<T, C: Container<T> + ?Sized, L: Length> GenericVec<T, C, L> {
     /// Returns iterator over mutable references of vector elements.
     pub fn iter_mut(&mut self) -> IterMut<T> {
         self.as_mut_slice().iter_mut()
+    }
+}
+
+impl<T: Clone, C: Container<T> + ?Sized, L: Length> GenericVec<T, C, L> {
+    /// Clones and appends elements in a slice to this vector until slice ends or vector capacity reached.
+    ///
+    /// If slice length is greater than free space in the vector then excess elements are simply ignored.
+    ///
+    /// Returns a number of elements being appended.
+    pub fn extend_from_slice(&mut self, slice: &[T]) -> usize {
+        let free_space = self.free_space_as_mut_slice();
+        let min_len = usize::min(free_space.len(), slice.len());
+        unsafe {
+            uninit_write_slice_cloned(
+                free_space.get_unchecked_mut(..min_len),
+                slice.get_unchecked(..min_len),
+            );
+        }
+        self.len = self.len + L::from_usize(min_len).unwrap();
+        min_len
+    }
+
+    /// Resizes the vector to the specified length.
+    ///
+    /// If `new_len` is less than vector length the the vector is truncated.
+    ///
+    /// If `new_len` is greater than the vector length then vector is filled with `value` up to `new_len` length.
+    ///
+    /// *Panics if `new_len` is greater than the vector capacity.*
+    pub fn resize(&mut self, new_len: usize, value: T) {
+        if new_len <= self.len() {
+            self.truncate(new_len);
+        } else {
+            assert!(new_len <= self.capacity());
+            for _ in self.len()..new_len {
+                unsafe { self.push_unchecked(value.clone()) };
+            }
+        }
     }
 }
 
