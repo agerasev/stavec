@@ -73,6 +73,10 @@ impl<T, const N: usize> StaticVec<T, N> {
     }
 
     /// Appends a new element to the end of the vector *without checking whether the vector is already full*.
+    ///
+    /// # Safety
+    ///
+    /// `push_unchecked` to the vector which is full is **undefined behavior**.
     pub unsafe fn push_unchecked(&mut self, value: T) {
         let _ = mem::replace(
             self.data.get_unchecked_mut(self.len),
@@ -94,6 +98,10 @@ impl<T, const N: usize> StaticVec<T, N> {
     }
 
     /// Takes a last element of the vector *without checking whether the vector is empty*.
+    ///
+    /// # Safety
+    ///
+    /// `pop_unchecked` from an empty vector is **undefined behavior**.
     pub unsafe fn pop_unchecked(&mut self) -> T {
         self.len -= 1;
         mem::replace(self.data.get_unchecked_mut(self.len), MaybeUninit::uninit()).assume_init()
@@ -199,27 +207,6 @@ impl<T, const N: usize> StaticVec<T, N> {
         }
     }
 
-    /// Constructs a new vector with elements from the iterator.
-    ///
-    /// If iterator contains more elements than the vector capacity then excess elements remain in the iterator.
-    pub fn from_iter<I: Iterator<Item = T>>(iter: I) -> Self {
-        let mut self_ = Self::new();
-        self_.extend_from_iter(iter);
-        self_
-    }
-
-    /// Transforms the vector into an iterator by values.
-    pub fn into_iter(mut self) -> IntoIter<T, N> {
-        let iter = IntoIter::new(
-            mem::replace(&mut self.data, unsafe {
-                MaybeUninit::uninit().assume_init()
-            }),
-            0..self.len,
-        );
-        mem::forget(self);
-        iter
-    }
-
     /// Returns iterator over references of vector elements.
     pub fn iter(&self) -> Iter<T> {
         self.as_slice().iter()
@@ -254,7 +241,9 @@ impl<T, const N: usize> Drop for StaticVec<T, N> {
 
 impl<T, const N: usize> FromIterator<T> for StaticVec<T, N> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        Self::from_iter(iter.into_iter())
+        let mut self_ = Self::new();
+        self_.extend_from_iter(iter.into_iter());
+        self_
     }
 }
 
@@ -262,8 +251,15 @@ impl<T, const N: usize> IntoIterator for StaticVec<T, N> {
     type Item = T;
     type IntoIter = IntoIter<T, N>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.into_iter()
+    fn into_iter(mut self) -> Self::IntoIter {
+        let iter = IntoIter::new(
+            mem::replace(&mut self.data, unsafe {
+                MaybeUninit::uninit().assume_init()
+            }),
+            0..self.len,
+        );
+        mem::forget(self);
+        iter
     }
 }
 
