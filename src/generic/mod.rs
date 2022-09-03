@@ -12,6 +12,7 @@ use core::{marker::PhantomData, mem};
 /// + `L` - type of the length of the vector, `usize` by default.
 ///   This would provide size optimization for small-capacity vectors, e.g. by using `u8` as length instead of `usize`.
 ///   Obviously, vector capacity is limited by [`L::max_value()`](`num_traits::Bounded::max_value`).
+#[cfg_attr(feature = "repr-c", repr(C))]
 pub struct GenericVec<T, C: Container<T> + ?Sized, L: Length = usize> {
     _phantom: PhantomData<T>,
     len: L,
