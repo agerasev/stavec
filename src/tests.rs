@@ -1,3 +1,5 @@
+use core::convert::TryInto;
+
 use crate::StaticVec;
 
 #[test]
@@ -200,13 +202,18 @@ fn array_conversion() {
     let input = [1, 2, 3, 4];
 
     // While feature(generic_arg_infer) is open, we cannot infer the capacity.
-    let v: StaticVec<_, 4> = input.into();
+    let mut v: StaticVec<_, 4> = input.into();
     assert_eq!(v.len(), 4);
     assert_eq!(v[0], 1);
     assert_eq!(v[1], 2);
     assert_eq!(v[2], 3);
     assert_eq!(v[3], 4);
 
-    let output: [i32; 4] = v.into();
-    assert_eq!(output, input);
+    let output: Result<[i32; 4], _> = v.clone().try_into();
+    assert!(output.is_ok());
+    assert_eq!(output.unwrap(), input);
+
+    v.pop().unwrap();
+    let output: Result<[i32; 4], _> = v.clone().try_into();
+    assert!(output.is_err());
 }
