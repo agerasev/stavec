@@ -1,3 +1,5 @@
+use core::convert::TryInto;
+
 use crate::StaticVec;
 use core::iter::{FromIterator, IntoIterator};
 
@@ -196,7 +198,6 @@ fn remove() {
     assert_eq!(v.len(), 0);
 }
 
-#[test]
 fn swap_remove() {
     let mut v = StaticVec::<_, 4>::from_iter(0..4);
 
@@ -209,4 +210,25 @@ fn swap_remove() {
     assert_eq!(v.len(), 1);
     assert_eq!(v.swap_remove(0), 2);
     assert_eq!(v.len(), 0);
+}
+
+#[test]
+fn array_conversion() {
+    let input = [1, 2, 3, 4];
+
+    // While feature(generic_arg_infer) is open, we cannot infer the capacity.
+    let mut v: StaticVec<_, 4> = input.into();
+    assert_eq!(v.len(), 4);
+    assert_eq!(v[0], 1);
+    assert_eq!(v[1], 2);
+    assert_eq!(v[2], 3);
+    assert_eq!(v[3], 4);
+
+    let output: Result<[i32; 4], _> = v.clone().try_into();
+    assert!(output.is_ok());
+    assert_eq!(output.unwrap(), input);
+
+    v.pop().unwrap();
+    let output: Result<[i32; 4], _> = v.clone().try_into();
+    assert!(output.is_err());
 }

@@ -11,7 +11,7 @@ mod tests;
 
 use core::{
     borrow::{Borrow, BorrowMut},
-    convert::{AsMut, AsRef},
+    convert::{AsMut, AsRef, TryFrom},
     fmt,
     hash::{Hash, Hasher},
     iter::{FromIterator, IntoIterator},
@@ -448,5 +448,32 @@ where
 {
     fn from(slice: &mut [T]) -> Self {
         Self::from_slice(slice)
+    }
+}
+
+impl<T, const N: usize> From<[T; N]> for StaticVec<T, N> {
+    fn from(array: [T; N]) -> Self {
+        let mut vec = Self::new();
+        for element in array {
+            unsafe { vec.push_unchecked(element) };
+        }
+        vec
+    }
+}
+
+impl<T, const N: usize> TryFrom<StaticVec<T, N>> for [T; N] {
+    type Error = ();
+
+    /// Converts the static vector into an array.
+    /// This only succeedes if the vector is full and thus actually contains `N` initialized elements.
+    fn try_from(mut vec: StaticVec<T, N>) -> Result<Self, Self::Error> {
+        if vec.is_full() {
+            unsafe {
+                vec.len = 0;
+                Ok(ptr::read(vec.as_ptr() as *const [T; N]))
+            }
+        } else {
+            Err(())
+        }
     }
 }
