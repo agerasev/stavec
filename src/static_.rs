@@ -2,7 +2,8 @@ use crate::GenericVec;
 use core::{
     convert::{AsMut, AsRef},
     iter::{FromIterator, IntoIterator},
-    mem::MaybeUninit,
+    mem::{ManuallyDrop, MaybeUninit},
+    ptr,
 };
 
 /// Stack-allocated vector with static capacity.
@@ -57,5 +58,27 @@ impl<T, const N: usize> AsRef<GenericVec<T, [MaybeUninit<T>]>> for StaticVec<T, 
 impl<T, const N: usize> AsMut<GenericVec<T, [MaybeUninit<T>]>> for StaticVec<T, N> {
     fn as_mut(&mut self) -> &mut GenericVec<T, [MaybeUninit<T>]> {
         self as &mut GenericVec<T, [MaybeUninit<T>]>
+    }
+}
+
+impl<T, const N: usize> From<[T; N]> for StaticVec<T, N> {
+    fn from(array: [T; N]) -> Self {
+        let array = ManuallyDrop::new(array);
+        unsafe { Self::from_raw_parts(ptr::read(array.as_ptr() as *const [MaybeUninit<T>; N]), N) }
+    }
+}
+
+impl<T, const N: usize> TryFrom<StaticVec<T, N>> for [T; N] {
+    type Error = ();
+
+    /// Converts the static vector into an array.
+    ///
+    /// This only succeedes if the vector is full and thus actually contains `N` initialized elements.
+    fn try_from(vec: StaticVec<T, N>) -> Result<Self, Self::Error> {
+        if vec.is_full() {
+            unsafe { Ok(ptr::read(vec.into_raw_parts().0.as_ptr() as *const [T; N])) }
+        } else {
+            Err(())
+        }
     }
 }
