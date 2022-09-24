@@ -1,4 +1,4 @@
-use crate::traits::{Container, Length, SizedContainer};
+use crate::traits::{Container, Length};
 use core::{
     iter::ExactSizeIterator,
     marker::PhantomData,
@@ -13,7 +13,7 @@ pub struct IntoIter<T, C: Container<T> + ?Sized, L: Length> {
     data: C,
 }
 
-impl<T, C: SizedContainer<T>, L: Length> IntoIter<T, C, L> {
+impl<T, C: Container<T>, L: Length> IntoIter<T, C, L> {
     pub(crate) fn new(data: C, range: Range<L>) -> Self {
         debug_assert!(range.end <= L::from_usize(data.as_ref().len()).unwrap());
         Self {
