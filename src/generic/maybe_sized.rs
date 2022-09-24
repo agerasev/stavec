@@ -8,7 +8,7 @@ use core::{
     convert::{AsMut, AsRef},
     fmt,
     hash::{Hash, Hasher},
-    iter::IntoIterator,
+    iter::{Extend, IntoIterator},
     mem::{self, MaybeUninit},
     ops::{Deref, DerefMut, Index, IndexMut},
     ptr,
@@ -367,5 +367,11 @@ impl<T, C: Container<T> + ?Sized, L: Length> Borrow<[T]> for GenericVec<T, C, L>
 impl<T, C: Container<T> + ?Sized, L: Length> BorrowMut<[T]> for GenericVec<T, C, L> {
     fn borrow_mut(&mut self) -> &mut [T] {
         self.as_mut_slice()
+    }
+}
+
+impl<T, C: Container<T> + ?Sized, L: Length> Extend<T> for GenericVec<T, C, L> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        self.extend_from_iter(iter.into_iter());
     }
 }

@@ -1,5 +1,6 @@
 use crate::traits::{Container, Length, SizedContainer};
 use core::{
+    iter::ExactSizeIterator,
     marker::PhantomData,
     mem::{self, MaybeUninit},
     ops::Range,
@@ -21,10 +22,21 @@ impl<T, C: SizedContainer<T>, L: Length> IntoIter<T, C, L> {
             range,
         }
     }
+
+    pub fn len(&self) -> usize {
+        (self.range.end - self.range.start).to_usize().unwrap()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl<T, C: Container<T> + ?Sized, L: Length> Iterator for IntoIter<T, C, L> {
     type Item = T;
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len(), Some(self.len()))
+    }
 
     fn next(&mut self) -> Option<T> {
         if self.range.start < self.range.end {
@@ -44,6 +56,8 @@ impl<T, C: Container<T> + ?Sized, L: Length> Iterator for IntoIter<T, C, L> {
         }
     }
 }
+
+impl<T, C: Container<T> + ?Sized, L: Length> ExactSizeIterator for IntoIter<T, C, L> {}
 
 impl<T, C: Container<T> + ?Sized, L: Length> Drop for IntoIter<T, C, L> {
     fn drop(&mut self) {
