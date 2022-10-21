@@ -73,7 +73,7 @@ impl<T, const N: usize> TryFrom<StaticVec<T, N>> for [T; N] {
 
     /// Converts the static vector into an array.
     ///
-    /// This only succeedes if the vector is full and thus actually contains `N` initialized elements.
+    /// This only succeeds if the vector is full and thus actually contains `N` initialized elements.
     fn try_from(vec: StaticVec<T, N>) -> Result<Self, Self::Error> {
         if vec.is_full() {
             unsafe { Ok(ptr::read(vec.into_raw_parts().0.as_ptr() as *const [T; N])) }
