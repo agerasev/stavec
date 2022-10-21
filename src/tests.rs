@@ -198,6 +198,7 @@ fn remove() {
     assert_eq!(v.len(), 0);
 }
 
+#[test]
 fn swap_remove() {
     let mut v = StaticVec::<_, 4>::from_iter(0..4);
 
