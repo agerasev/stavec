@@ -9,14 +9,16 @@ extern crate std;
 pub mod traits;
 
 mod cmp;
-mod generic;
 mod iter;
 mod static_;
+mod string;
 mod utils;
+mod vec;
 
 #[cfg(test)]
 mod tests;
 
-pub use generic::GenericVec;
 pub use iter::IntoIter;
 pub use static_::StaticVec;
+pub use string::GenericString;
+pub use vec::GenericVec;

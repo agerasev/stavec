@@ -46,7 +46,7 @@ fn push_pop() {
     assert_eq!(v.len(), 0);
 
     for i in 0..3 {
-        assert_eq!(v.push(i as i32), Ok(()));
+        assert_eq!(v.push(i), Ok(()));
     }
     assert_eq!(v.len(), 3);
     for i in 0..v.len() {
@@ -73,7 +73,7 @@ fn push_pop() {
     }
 
     for i in 0..3 {
-        assert_eq!(v.pop(), Some(3 - i as i32));
+        assert_eq!(v.pop(), Some(3 - i));
     }
     assert_eq!(v.len(), 1);
     for i in 0..v.len() {
