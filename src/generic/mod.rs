@@ -232,7 +232,7 @@ impl<T, C: Container<T> + ?Sized, L: Length> GenericVec<T, C, L> {
     /// Returns a number of elements being appended.
     pub fn extend_from_iter<I: Iterator<Item = T>>(&mut self, iter: I) -> usize {
         let mut counter = 0;
-        for (x, _) in iter.zip(self.len()..self.capacity()) {
+        for x in iter.take(self.capacity() - self.len()) {
             unsafe { self.push_unchecked(x) };
             counter += 1;
         }
