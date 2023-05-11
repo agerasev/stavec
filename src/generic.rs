@@ -19,7 +19,6 @@ use num_traits::clamp_max;
 /// Fixed-capacity vector.
 ///
 /// The type parametrized by:
-/// + `C::Item` - item type,
 /// + `C` - type of the underlying container, may be unsized.
 /// + `L` - type of the length of the vector, `usize` by default.
 ///   This would provide size optimization for small-capacity vectors, e.g. by using `u8` as length instead of `usize`.

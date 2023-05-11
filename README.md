@@ -15,7 +15,7 @@
 [github]: https://github.com/agerasev/stavec/actions/workflows/test.yml
 [license]: #license
 
-Stack-allocated vector with static capacity.
+Generic vector with static capacity.
 
 The crate could be used without `std`.
 
