@@ -1,6 +1,3 @@
-mod default;
-mod sized;
-
 use crate::{
     traits::{Container, Length, Slot},
     utils::{occupy_slice_cloned, slice_assume_occupied_mut, slice_assume_occupied_ref},
@@ -29,8 +26,8 @@ use num_traits::clamp_max;
 ///   Obviously, vector capacity is limited by [`L::max_value()`](`num_traits::Bounded::max_value`).
 #[cfg_attr(feature = "repr-c", repr(C))]
 pub struct GenericVec<C: Container + ?Sized, L: Length = usize> {
-    len: L,
-    data: C,
+    pub(crate) len: L,
+    pub(crate) data: C,
 }
 
 impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {

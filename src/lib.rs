@@ -9,8 +9,10 @@ extern crate std;
 pub mod traits;
 
 mod cmp;
+mod default;
 mod generic;
 mod iter;
+mod sized;
 mod static_;
 mod utils;
 

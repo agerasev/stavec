@@ -1,7 +1,6 @@
-use super::GenericVec;
 use crate::{
     traits::{Container, Length},
-    IntoIter,
+    GenericVec, IntoIter,
 };
 use core::{iter::IntoIterator, mem::ManuallyDrop, ptr};
 
@@ -25,8 +24,8 @@ impl<C: Container, L: Length> GenericVec<C, L> {
     ///
     /// You need to manually drop items from container whose indices are lower than `len`.
     pub unsafe fn into_raw_parts(self) -> (C, L) {
-        let self_ = ManuallyDrop::new(self);
-        (ptr::read(&self_.data as *const _), self_.len)
+        let this = ManuallyDrop::new(self);
+        (ptr::read(&this.data as *const _), this.len)
     }
 }
 
