@@ -7,7 +7,7 @@ use core::{
 };
 
 /// Stack-allocated vector with static capacity.
-pub type StaticVec<T, const N: usize> = GenericVec<T, [MaybeUninit<T>; N]>;
+pub type StaticVec<T, const N: usize> = GenericVec<[MaybeUninit<T>; N]>;
 
 impl<T, const N: usize> StaticVec<T, N> {
     pub const CAPACITY: usize = N;
@@ -49,15 +49,15 @@ impl<T: Clone, const N: usize> StaticVec<T, N> {
     }
 }
 
-impl<T, const N: usize> AsRef<GenericVec<T, [MaybeUninit<T>]>> for StaticVec<T, N> {
-    fn as_ref(&self) -> &GenericVec<T, [MaybeUninit<T>]> {
-        self as &GenericVec<T, [MaybeUninit<T>]>
+impl<T, const N: usize> AsRef<GenericVec<[MaybeUninit<T>]>> for StaticVec<T, N> {
+    fn as_ref(&self) -> &GenericVec<[MaybeUninit<T>]> {
+        self as &GenericVec<[MaybeUninit<T>]>
     }
 }
 
-impl<T, const N: usize> AsMut<GenericVec<T, [MaybeUninit<T>]>> for StaticVec<T, N> {
-    fn as_mut(&mut self) -> &mut GenericVec<T, [MaybeUninit<T>]> {
-        self as &mut GenericVec<T, [MaybeUninit<T>]>
+impl<T, const N: usize> AsMut<GenericVec<[MaybeUninit<T>]>> for StaticVec<T, N> {
+    fn as_mut(&mut self) -> &mut GenericVec<[MaybeUninit<T>]> {
+        self as &mut GenericVec<[MaybeUninit<T>]>
     }
 }
 

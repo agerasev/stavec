@@ -1,38 +1,32 @@
-use core::mem::MaybeUninit;
+use crate::traits::Slot;
 
-/// Assume that slice of [`MaybeUninit`] is initialized.
+/// Assume that slice of [`MaybeUninit`] is occupied.
 ///
 /// # Safety
 ///
-/// Slice contents must be initialized.
-//
-// TODO: Remove on `maybe_uninit_slice` stabilization.
-pub(crate) unsafe fn slice_assume_init_ref<T>(slice: &[MaybeUninit<T>]) -> &[T] {
-    &*(slice as *const [MaybeUninit<T>] as *const [T])
+/// Slice contents must be occupied.
+pub(crate) unsafe fn slice_assume_occupied_ref<T, S: Slot<T>>(slice: &[S]) -> &[T] {
+    &*(slice as *const [S] as *const [T])
 }
 
-/// Assume that mutable slice of [`MaybeUninit`] is initialized.
+/// Assume that mutable slice of [`MaybeUninit`] is occupied.
 ///
 /// # Safety
 ///
-/// Slice contents must be initialized.
-//
-// TODO: Remove on `maybe_uninit_slice` stabilization.
-pub(crate) unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
-    &mut *(slice as *mut [MaybeUninit<T>] as *mut [T])
+/// Slice contents must be occupied.
+pub(crate) unsafe fn slice_assume_occupied_mut<T, S: Slot<T>>(slice: &mut [S]) -> &mut [T] {
+    &mut *(slice as *mut [S] as *mut [T])
 }
 
-/// Clones the elements from `src` to `this`, returning a mutable reference to the now initialized contents of `this`.
-/// Any already initialized elements will not be dropped.
-///
-/// TODO: Remove on `maybe_uninit_write_slice` stabilization.
-pub fn uninit_write_slice_cloned<'a, T: Clone>(
-    this: &'a mut [MaybeUninit<T>],
+/// Clones the elements from `src` to `this`, returning a mutable reference to the now occupied contents of `this`.
+/// Any already occupied elements will not be dropped.
+pub fn occupy_slice_cloned<'a, T: Clone, S: Slot<T>>(
+    this: &'a mut [S],
     slice: &[T],
 ) -> &'a mut [T] {
     assert_eq!(this.len(), slice.len());
     for (dst, src) in this.iter_mut().zip(slice.iter().cloned()) {
-        dst.write(src);
+        *dst = S::occupied(src);
     }
-    unsafe { slice_assume_init_mut(this) }
+    unsafe { slice_assume_occupied_mut(this) }
 }
