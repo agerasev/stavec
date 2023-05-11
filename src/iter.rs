@@ -31,13 +31,10 @@ impl<C: Container + ?Sized, L: Length> Iterator for IntoIter<C, L> {
     fn next(&mut self) -> Option<C::Item> {
         if self.range.start < self.range.end {
             let value = unsafe {
-                mem::replace(
-                    self.data
-                        .as_mut()
-                        .get_unchecked_mut(self.range.start.to_usize().unwrap()),
-                    C::Slot::empty(),
-                )
-                .assume_occupied()
+                self.data
+                    .as_mut()
+                    .get_unchecked_mut(self.range.start.to_usize().unwrap())
+                    .assume_init_read()
             };
             self.range.start += L::one();
             Some(value)
@@ -54,7 +51,7 @@ impl<C: Container + ?Sized, L: Length> Drop for IntoIter<C, L> {
         let range = self.range.start.to_usize().unwrap()..self.range.end.to_usize().unwrap();
         unsafe {
             for x in self.data.as_mut().get_unchecked_mut(range) {
-                mem::drop(mem::replace(x, C::Slot::empty()).assume_occupied());
+                mem::drop(x.assume_init_read());
             }
         }
     }

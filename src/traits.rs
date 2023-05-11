@@ -10,21 +10,29 @@ use num_traits::{Bounded, FromPrimitive, NumAssign, ToPrimitive, Unsigned};
 pub unsafe trait Slot: Sized {
     type Item: Sized;
 
-    fn empty() -> Self;
-    fn occupied(item: Self::Item) -> Self;
-    unsafe fn assume_occupied(self) -> Self::Item;
+    fn new(item: Self::Item) -> Self;
+    unsafe fn assume_init(self) -> Self::Item;
+    unsafe fn assume_init_read(&self) -> Self::Item;
+}
+pub trait UninitSlot: Slot {
+    fn uninit() -> Self;
 }
 unsafe impl<T> Slot for MaybeUninit<T> {
     type Item = T;
 
-    fn empty() -> Self {
-        Self::uninit()
-    }
-    fn occupied(item: T) -> Self {
+    fn new(item: T) -> Self {
         Self::new(item)
     }
-    unsafe fn assume_occupied(self) -> T {
+    unsafe fn assume_init(self) -> Self::Item {
         self.assume_init()
+    }
+    unsafe fn assume_init_read(&self) -> Self::Item {
+        self.assume_init_read()
+    }
+}
+impl<T> UninitSlot for MaybeUninit<T> {
+    fn uninit() -> Self {
+        Self::uninit()
     }
 }
 
@@ -49,9 +57,9 @@ unsafe impl<S: Slot, const N: usize> Container for [S; N] {
     type Item = S::Item;
     type Slot = S;
 }
-impl<S: Slot, const N: usize> DefaultContainer for [S; N] {
+impl<S: UninitSlot, const N: usize> DefaultContainer for [S; N] {
     fn default() -> Self {
-        [(); N].map(|()| S::empty())
+        [(); N].map(|()| S::uninit())
     }
 }
 

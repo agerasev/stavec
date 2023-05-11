@@ -1,6 +1,6 @@
 use crate::{
     traits::{Container, Length, Slot},
-    utils::{occupy_slice_cloned, slice_assume_occupied_mut, slice_assume_occupied_ref},
+    utils::{slice_assume_init_mut, slice_assume_init_ref, uninit_write_slice_cloned},
 };
 use core::{
     borrow::{Borrow, BorrowMut},
@@ -80,7 +80,7 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
         let len = self.len();
         let _ = mem::replace(
             self.data.as_mut().get_unchecked_mut(len),
-            C::Slot::occupied(value),
+            C::Slot::new(value),
         );
         self.len += L::one();
     }
@@ -105,7 +105,7 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
     pub unsafe fn pop_unchecked(&mut self) -> C::Item {
         self.len -= L::one();
         let len = self.len();
-        mem::replace(self.data.as_mut().get_unchecked_mut(len), C::Slot::empty()).assume_occupied()
+        self.data.as_mut().get_unchecked_mut(len).assume_init_read()
     }
 
     /// Removes and returns the last element of the vector.
@@ -193,13 +193,13 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
 
     /// Slice of the vector content.
     pub fn as_slice(&self) -> &[C::Item] {
-        unsafe { slice_assume_occupied_ref(self.data.as_ref().get_unchecked(..self.len())) }
+        unsafe { slice_assume_init_ref(self.data.as_ref().get_unchecked(..self.len())) }
     }
 
     /// Mutable slice of the vector content.
     pub fn as_mut_slice(&mut self) -> &mut [C::Item] {
         let len = self.len();
-        unsafe { slice_assume_occupied_mut(self.data.as_mut().get_unchecked_mut(..len)) }
+        unsafe { slice_assume_init_mut(self.data.as_mut().get_unchecked_mut(..len)) }
     }
 
     /// Slice of remaining free space in vector. All items are un-initialized.
@@ -253,7 +253,7 @@ where
         let free_space = self.free_space_as_mut_slice();
         let min_len = usize::min(free_space.len(), slice.len());
         unsafe {
-            occupy_slice_cloned(
+            uninit_write_slice_cloned(
                 free_space.get_unchecked_mut(..min_len),
                 slice.get_unchecked(..min_len),
             );
@@ -284,12 +284,7 @@ where
 impl<C: Container + ?Sized, L: Length> Drop for GenericVec<C, L> {
     fn drop(&mut self) {
         for i in 0..self.len() {
-            unsafe {
-                mem::drop(
-                    mem::replace(self.data.as_mut().get_unchecked_mut(i), C::Slot::empty())
-                        .assume_occupied(),
-                );
-            }
+            mem::drop(unsafe { self.data.as_mut().get_unchecked_mut(i).assume_init_read() });
         }
     }
 }
