@@ -7,12 +7,16 @@ use num_traits::{Bounded, FromPrimitive, NumAssign, ToPrimitive, Unsigned};
 /// Slot for `T` that may be empty or occupied.
 ///
 /// Must have the same layout as `T`.
-pub unsafe trait Slot<T: Sized>: Sized {
+pub unsafe trait Slot: Sized {
+    type Item: Sized;
+
     fn empty() -> Self;
-    fn occupied(item: T) -> Self;
-    unsafe fn assume_occupied(self) -> T;
+    fn occupied(item: Self::Item) -> Self;
+    unsafe fn assume_occupied(self) -> Self::Item;
 }
-unsafe impl<T> Slot<T> for MaybeUninit<T> {
+unsafe impl<T> Slot for MaybeUninit<T> {
+    type Item = T;
+
     fn empty() -> Self {
         Self::uninit()
     }
@@ -31,7 +35,7 @@ unsafe impl<T> Slot<T> for MaybeUninit<T> {
 /// [`as_ref()`](`AsRef::as_ref`) and [`as_mut()`](`AsMut::as_mut`) must provide the same slices with the always the same content and unchanged length.
 pub unsafe trait Container: AsRef<[Self::Slot]> + AsMut<[Self::Slot]> {
     type Item: Sized;
-    type Slot: Slot<Self::Item>;
+    type Slot: Slot<Item = Self::Item>;
 }
 
 /// Default container.
@@ -41,24 +45,24 @@ pub trait DefaultContainer: Container + Sized {
     fn default() -> Self;
 }
 
-unsafe impl<T, const N: usize> Container for [MaybeUninit<T>; N] {
-    type Item = T;
-    type Slot = MaybeUninit<T>;
+unsafe impl<S: Slot, const N: usize> Container for [S; N] {
+    type Item = S::Item;
+    type Slot = S;
 }
-impl<T, const N: usize> DefaultContainer for [MaybeUninit<T>; N] {
+impl<S: Slot, const N: usize> DefaultContainer for [S; N] {
     fn default() -> Self {
-        unsafe { MaybeUninit::uninit().assume_init() }
+        [(); N].map(|()| S::empty())
     }
 }
 
-unsafe impl<T> Container for [MaybeUninit<T>] {
-    type Item = T;
-    type Slot = MaybeUninit<T>;
+unsafe impl<S: Slot> Container for [S] {
+    type Item = S::Item;
+    type Slot = S;
 }
 
-unsafe impl<'a, T> Container for &'a mut [MaybeUninit<T>] {
-    type Item = T;
-    type Slot = MaybeUninit<T>;
+unsafe impl<'a, S: Slot> Container for &'a mut [S] {
+    type Item = S::Item;
+    type Slot = S;
 }
 
 /// Abstract type that could be used as vector length.

@@ -5,8 +5,8 @@ use crate::traits::Slot;
 /// # Safety
 ///
 /// Slice contents must be occupied.
-pub(crate) unsafe fn slice_assume_occupied_ref<T, S: Slot<T>>(slice: &[S]) -> &[T] {
-    &*(slice as *const [S] as *const [T])
+pub(crate) unsafe fn slice_assume_occupied_ref<S: Slot>(slice: &[S]) -> &[S::Item] {
+    &*(slice as *const [S] as *const [S::Item])
 }
 
 /// Assume that mutable slice of [`MaybeUninit`] is occupied.
@@ -14,16 +14,16 @@ pub(crate) unsafe fn slice_assume_occupied_ref<T, S: Slot<T>>(slice: &[S]) -> &[
 /// # Safety
 ///
 /// Slice contents must be occupied.
-pub(crate) unsafe fn slice_assume_occupied_mut<T, S: Slot<T>>(slice: &mut [S]) -> &mut [T] {
-    &mut *(slice as *mut [S] as *mut [T])
+pub(crate) unsafe fn slice_assume_occupied_mut<S: Slot>(slice: &mut [S]) -> &mut [S::Item] {
+    &mut *(slice as *mut [S] as *mut [S::Item])
 }
 
 /// Clones the elements from `src` to `this`, returning a mutable reference to the now occupied contents of `this`.
 /// Any already occupied elements will not be dropped.
-pub fn occupy_slice_cloned<'a, T: Clone, S: Slot<T>>(
-    this: &'a mut [S],
-    slice: &[T],
-) -> &'a mut [T] {
+pub fn occupy_slice_cloned<'a, S: Slot>(this: &'a mut [S], slice: &[S::Item]) -> &'a mut [S::Item]
+where
+    S::Item: Clone,
+{
     assert_eq!(this.len(), slice.len());
     for (dst, src) in this.iter_mut().zip(slice.iter().cloned()) {
         *dst = S::occupied(src);
