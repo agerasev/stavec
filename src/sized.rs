@@ -1,11 +1,10 @@
-use super::GenericVec;
 use crate::{
     traits::{Container, Length},
-    IntoIter,
+    GenericVec, IntoIter,
 };
-use core::{iter::IntoIterator, marker::PhantomData, mem::ManuallyDrop, ptr};
+use core::{iter::IntoIterator, mem::ManuallyDrop, ptr};
 
-impl<T, C: Container<T>, L: Length> GenericVec<T, C, L> {
+impl<C: Container, L: Length> GenericVec<C, L> {
     pub fn from_empty(data: C) -> Self {
         unsafe { Self::from_raw_parts(data, L::zero()) }
     }
@@ -16,11 +15,7 @@ impl<T, C: Container<T>, L: Length> GenericVec<T, C, L> {
     ///
     /// All `data` contents with index lower than `len` must be initialized, all other must be un-initialized.
     pub unsafe fn from_raw_parts(data: C, len: L) -> Self {
-        Self {
-            _phantom: PhantomData,
-            len,
-            data,
-        }
+        Self { len, data }
     }
 
     /// Deconstruct the vector into underlying container and length.
@@ -34,9 +29,9 @@ impl<T, C: Container<T>, L: Length> GenericVec<T, C, L> {
     }
 }
 
-impl<T, C: Container<T>, L: Length> IntoIterator for GenericVec<T, C, L> {
-    type Item = T;
-    type IntoIter = IntoIter<T, C, L>;
+impl<C: Container, L: Length> IntoIterator for GenericVec<C, L> {
+    type Item = C::Item;
+    type IntoIter = IntoIter<C, L>;
 
     fn into_iter(self) -> Self::IntoIter {
         let (data, len) = unsafe { self.into_raw_parts() };

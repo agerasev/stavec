@@ -1,26 +1,16 @@
-use crate::traits::{Container, Length};
-use core::{
-    iter::ExactSizeIterator,
-    marker::PhantomData,
-    mem::{self, MaybeUninit},
-    ops::Range,
-};
+use crate::traits::{Container, Length, Slot};
+use core::{iter::ExactSizeIterator, mem, ops::Range};
 
 /// Iterator by values of static vector.
-pub struct IntoIter<T, C: Container<T> + ?Sized, L: Length> {
-    _phantom: PhantomData<T>,
+pub struct IntoIter<C: Container + ?Sized, L: Length> {
     range: Range<L>,
     data: C,
 }
 
-impl<T, C: Container<T>, L: Length> IntoIter<T, C, L> {
+impl<C: Container, L: Length> IntoIter<C, L> {
     pub(crate) fn new(data: C, range: Range<L>) -> Self {
         debug_assert!(range.end <= L::from_usize(data.as_ref().len()).unwrap());
-        Self {
-            _phantom: PhantomData,
-            data,
-            range,
-        }
+        Self { data, range }
     }
 
     pub fn len(&self) -> usize {
@@ -31,23 +21,20 @@ impl<T, C: Container<T>, L: Length> IntoIter<T, C, L> {
     }
 }
 
-impl<T, C: Container<T> + ?Sized, L: Length> Iterator for IntoIter<T, C, L> {
-    type Item = T;
+impl<C: Container + ?Sized, L: Length> Iterator for IntoIter<C, L> {
+    type Item = C::Item;
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.len(), Some(self.len()))
     }
 
-    fn next(&mut self) -> Option<T> {
+    fn next(&mut self) -> Option<C::Item> {
         if self.range.start < self.range.end {
             let value = unsafe {
-                mem::replace(
-                    self.data
-                        .as_mut()
-                        .get_unchecked_mut(self.range.start.to_usize().unwrap()),
-                    MaybeUninit::uninit(),
-                )
-                .assume_init()
+                self.data
+                    .as_mut()
+                    .get_unchecked_mut(self.range.start.to_usize().unwrap())
+                    .assume_init_read()
             };
             self.range.start += L::one();
             Some(value)
@@ -57,14 +44,14 @@ impl<T, C: Container<T> + ?Sized, L: Length> Iterator for IntoIter<T, C, L> {
     }
 }
 
-impl<T, C: Container<T> + ?Sized, L: Length> ExactSizeIterator for IntoIter<T, C, L> {}
+impl<C: Container + ?Sized, L: Length> ExactSizeIterator for IntoIter<C, L> {}
 
-impl<T, C: Container<T> + ?Sized, L: Length> Drop for IntoIter<T, C, L> {
+impl<C: Container + ?Sized, L: Length> Drop for IntoIter<C, L> {
     fn drop(&mut self) {
         let range = self.range.start.to_usize().unwrap()..self.range.end.to_usize().unwrap();
         unsafe {
             for x in self.data.as_mut().get_unchecked_mut(range) {
-                mem::drop(mem::replace(x, MaybeUninit::uninit()).assume_init());
+                mem::drop(x.assume_init_read());
             }
         }
     }

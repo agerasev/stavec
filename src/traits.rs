@@ -4,30 +4,82 @@ use core::{
 };
 use num_traits::{Bounded, FromPrimitive, NumAssign, ToPrimitive, Unsigned};
 
+/// Slot for `T` that may be empty or occupied.
+///
+/// # Safety
+///
+/// Must have the same layout as `T`.
+pub unsafe trait Slot: Sized {
+    type Item: Sized;
+
+    fn new(item: Self::Item) -> Self;
+    /// # Safety
+    ///
+    /// Data in the slot must be initialized.
+    unsafe fn assume_init(self) -> Self::Item;
+    /// # Safety
+    ///
+    /// Data in the slot must be initialized.
+    unsafe fn assume_init_read(&self) -> Self::Item;
+}
+pub trait UninitSlot: Slot {
+    fn uninit() -> Self;
+}
+unsafe impl<T> Slot for MaybeUninit<T> {
+    type Item = T;
+
+    fn new(item: T) -> Self {
+        Self::new(item)
+    }
+    unsafe fn assume_init(self) -> Self::Item {
+        self.assume_init()
+    }
+    unsafe fn assume_init_read(&self) -> Self::Item {
+        self.assume_init_read()
+    }
+}
+impl<T> UninitSlot for MaybeUninit<T> {
+    fn uninit() -> Self {
+        Self::uninit()
+    }
+}
+
 /// Abstract container. May be unsized.
 ///
 /// # Safety
 ///
 /// [`as_ref()`](`AsRef::as_ref`) and [`as_mut()`](`AsMut::as_mut`) must provide the same slices with the always the same content and unchanged length.
-pub unsafe trait Container<T>: AsRef<[MaybeUninit<T>]> + AsMut<[MaybeUninit<T>]> {}
+pub unsafe trait Container: AsRef<[Self::Slot]> + AsMut<[Self::Slot]> {
+    type Item: Sized;
+    type Slot: Slot<Item = Self::Item>;
+}
 
 /// Default container.
 ///
 /// Exists because [`Default`] is not implemented for generic-length array (`[T; N]`).
-pub trait DefaultContainer<T>: Container<T> + Sized {
+pub trait DefaultContainer: Container + Sized {
     fn default() -> Self;
 }
 
-unsafe impl<T, const N: usize> Container<T> for [MaybeUninit<T>; N] {}
-impl<T, const N: usize> DefaultContainer<T> for [MaybeUninit<T>; N] {
+unsafe impl<S: Slot, const N: usize> Container for [S; N] {
+    type Item = S::Item;
+    type Slot = S;
+}
+impl<S: UninitSlot, const N: usize> DefaultContainer for [S; N] {
     fn default() -> Self {
-        unsafe { MaybeUninit::uninit().assume_init() }
+        [(); N].map(|()| S::uninit())
     }
 }
 
-unsafe impl<T> Container<T> for [MaybeUninit<T>] {}
+unsafe impl<S: Slot> Container for [S] {
+    type Item = S::Item;
+    type Slot = S;
+}
 
-unsafe impl<'a, T> Container<T> for &'a mut [MaybeUninit<T>] {}
+unsafe impl<'a, S: Slot> Container for &'a mut [S] {
+    type Item = S::Item;
+    type Slot = S;
+}
 
 /// Abstract type that could be used as vector length.
 pub trait Length:

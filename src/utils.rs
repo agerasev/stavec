@@ -1,38 +1,35 @@
-use core::mem::MaybeUninit;
+use crate::traits::Slot;
 
-/// Assume that slice of [`MaybeUninit`] is initialized.
+/// Assume that slice of [`MaybeUninit`] is occupied.
 ///
 /// # Safety
 ///
-/// Slice contents must be initialized.
-//
-// TODO: Remove on `maybe_uninit_slice` stabilization.
-pub(crate) unsafe fn slice_assume_init_ref<T>(slice: &[MaybeUninit<T>]) -> &[T] {
-    &*(slice as *const [MaybeUninit<T>] as *const [T])
+/// Slice contents must be occupied.
+pub(crate) unsafe fn slice_assume_init_ref<S: Slot>(slice: &[S]) -> &[S::Item] {
+    &*(slice as *const [S] as *const [S::Item])
 }
 
-/// Assume that mutable slice of [`MaybeUninit`] is initialized.
+/// Assume that mutable slice of [`MaybeUninit`] is occupied.
 ///
 /// # Safety
 ///
-/// Slice contents must be initialized.
-//
-// TODO: Remove on `maybe_uninit_slice` stabilization.
-pub(crate) unsafe fn slice_assume_init_mut<T>(slice: &mut [MaybeUninit<T>]) -> &mut [T] {
-    &mut *(slice as *mut [MaybeUninit<T>] as *mut [T])
+/// Slice contents must be occupied.
+pub(crate) unsafe fn slice_assume_init_mut<S: Slot>(slice: &mut [S]) -> &mut [S::Item] {
+    &mut *(slice as *mut [S] as *mut [S::Item])
 }
 
-/// Clones the elements from `src` to `this`, returning a mutable reference to the now initialized contents of `this`.
-/// Any already initialized elements will not be dropped.
-///
-/// TODO: Remove on `maybe_uninit_write_slice` stabilization.
-pub fn uninit_write_slice_cloned<'a, T: Clone>(
-    this: &'a mut [MaybeUninit<T>],
-    slice: &[T],
-) -> &'a mut [T] {
+/// Clones the elements from `src` to `this`, returning a mutable reference to the now occupied contents of `this`.
+/// Any already occupied elements will not be dropped.
+pub fn uninit_write_slice_cloned<'a, S: Slot>(
+    this: &'a mut [S],
+    slice: &[S::Item],
+) -> &'a mut [S::Item]
+where
+    S::Item: Clone,
+{
     assert_eq!(this.len(), slice.len());
     for (dst, src) in this.iter_mut().zip(slice.iter().cloned()) {
-        dst.write(src);
+        *dst = S::new(src);
     }
     unsafe { slice_assume_init_mut(this) }
 }
