@@ -6,12 +6,20 @@ use num_traits::{Bounded, FromPrimitive, NumAssign, ToPrimitive, Unsigned};
 
 /// Slot for `T` that may be empty or occupied.
 ///
+/// # Safety
+///
 /// Must have the same layout as `T`.
 pub unsafe trait Slot: Sized {
     type Item: Sized;
 
     fn new(item: Self::Item) -> Self;
+    /// # Safety
+    ///
+    /// Data in the slot must be initialized.
     unsafe fn assume_init(self) -> Self::Item;
+    /// # Safety
+    ///
+    /// Data in the slot must be initialized.
     unsafe fn assume_init_read(&self) -> Self::Item;
 }
 pub trait UninitSlot: Slot {
