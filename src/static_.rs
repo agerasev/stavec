@@ -1,7 +1,7 @@
 use crate::GenericVec;
 use core::{
     convert::{AsMut, AsRef},
-    iter::{FromIterator, IntoIterator},
+    iter::IntoIterator,
     mem::{ManuallyDrop, MaybeUninit},
     ptr,
 };
@@ -31,7 +31,9 @@ impl<T, const N: usize> StaticVec<T, N> {
     /// *Panics if passed array size is greater than vector capacity.*
     pub fn from_array<const M: usize>(array: [T; M]) -> Self {
         assert!(M <= N); // TODO: Use static assert.
-        Self::from_iter(IntoIterator::into_iter(array))
+        Self::try_from_iter(IntoIterator::into_iter(array))
+            .ok()
+            .unwrap()
     }
 }
 

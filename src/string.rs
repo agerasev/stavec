@@ -1,5 +1,6 @@
 use crate::{
-    traits::{Container, Length},
+    traits::{Container, DefaultContainer, Length},
+    utils::FullError,
     GenericVec,
 };
 use core::{
@@ -12,8 +13,36 @@ use core::{
 };
 
 #[repr(transparent)]
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct GenericString<C: Container<Item = u8> + ?Sized, L: Length = usize> {
     bytes: GenericVec<C, L>,
+}
+
+impl<C: DefaultContainer<Item = u8>, L: Length> Default for GenericString<C, L> {
+    fn default() -> Self {
+        Self {
+            bytes: GenericVec::default(),
+        }
+    }
+}
+impl<C: DefaultContainer<Item = u8>, L: Length> Clone for GenericString<C, L> {
+    fn clone(&self) -> Self {
+        Self {
+            bytes: self.bytes.clone(),
+        }
+    }
+}
+
+impl<C: Container<Item = u8> + ?Sized, L: Length> GenericString<C, L> {
+    pub fn push(&mut self, c: char) -> Result<(), FullError> {
+        let char_len = c.len_utf8();
+        if self.bytes.remaining() >= char_len {
+            self.bytes.extend_from_slice(&[0; 4][..char_len]).unwrap();
+            Ok(())
+        } else {
+            Err(FullError)
+        }
+    }
 }
 
 impl<C: Container<Item = u8> + ?Sized, L: Length> GenericString<C, L> {
@@ -65,7 +94,13 @@ impl<C: Container<Item = u8> + ?Sized, L: Length> Hash for GenericString<C, L> {
 
 impl<C: Container<Item = u8> + ?Sized, L: Length> fmt::Debug for GenericString<C, L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        self.as_str().fmt(f)
+        fmt::Debug::fmt(self.as_str(), f)
+    }
+}
+
+impl<C: Container<Item = u8> + ?Sized, L: Length> fmt::Display for GenericString<C, L> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        fmt::Display::fmt(self.as_str(), f)
     }
 }
 

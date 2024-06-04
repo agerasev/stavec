@@ -1,5 +1,8 @@
 use crate::traits::Slot;
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct FullError;
+
 /// Assume that slice of [`MaybeUninit`] is occupied.
 ///
 /// # Safety

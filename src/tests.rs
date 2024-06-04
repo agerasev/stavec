@@ -1,7 +1,7 @@
 use core::convert::TryInto;
 
 use crate::StaticVec;
-use core::iter::{FromIterator, IntoIterator};
+use core::iter::IntoIterator;
 
 #[test]
 fn empty() {
@@ -119,19 +119,26 @@ fn drop() {
 }
 
 #[test]
-fn extend() {
+fn extend_from_slice() {
     let mut v = StaticVec::<i32, 4>::new();
-    v.extend_from_slice(&[0, 1, 2]);
+    v.extend_from_slice(&[0, 1, 2]).unwrap();
     assert_eq!(v.len(), 3);
     for i in 0..3 {
         assert_eq!(v[i], i as i32);
     }
 
-    v.extend_from_slice(&[3, 4]);
+    v.extend_from_slice(&[3]).unwrap();
     assert_eq!(v.len(), 4);
     for i in 0..4 {
         assert_eq!(v[i], i as i32);
     }
+}
+
+#[test]
+fn extend_from_slice_failed() {
+    let mut v = StaticVec::<i32, 4>::new();
+    assert!(v.extend_from_slice(&[0, 1, 2, 3, 4]).is_err());
+    assert!(v.is_empty());
 }
 
 #[test]
@@ -142,7 +149,7 @@ fn fmt() {
     let mut v = StaticVec::<i32, 4>::new();
     assert_eq!(format!("{:?}", &v), "[]");
 
-    v.extend_from_slice(&[0, 1, 2]);
+    v.extend_from_slice(&[0, 1, 2]).unwrap();
     assert_eq!(format!("{:?}", &v), "[0, 1, 2]");
 
     v.push(3).unwrap();
@@ -151,7 +158,7 @@ fn fmt() {
 
 #[test]
 fn iter() {
-    let v = StaticVec::<_, 4>::from_iter(0..3);
+    let v = StaticVec::<_, 4>::try_from_iter(0..3).unwrap();
     let mut it = v.into_iter();
 
     assert_eq!(it.next(), Some(0));
@@ -161,12 +168,17 @@ fn iter() {
 }
 
 #[test]
+fn from_iter_failed() {
+    assert_eq!(StaticVec::<_, 2>::try_from_iter(0..3), Err(2));
+}
+
+#[test]
 #[cfg(feature = "std")]
 fn iter_drop() {
     use std::{mem, rc::Rc};
 
     let rcs = [Rc::new(()), Rc::new(()), Rc::new(())];
-    let v = StaticVec::<_, 4>::from_slice(rcs.as_ref());
+    let v = StaticVec::<_, 4>::try_from_slice(rcs.as_ref()).unwrap();
     let mut it = v.into_iter();
     for rc in &rcs {
         assert_eq!(Rc::strong_count(rc), 2);
@@ -185,7 +197,7 @@ fn iter_drop() {
 
 #[test]
 fn remove() {
-    let mut v = StaticVec::<_, 4>::from_iter(0..4);
+    let mut v = StaticVec::<_, 4>::try_from_iter(0..4).unwrap();
 
     assert_eq!(v.len(), 4);
     assert_eq!(v.remove(3), 3);
@@ -200,7 +212,7 @@ fn remove() {
 
 #[test]
 fn swap_remove() {
-    let mut v = StaticVec::<_, 4>::from_iter(0..4);
+    let mut v = StaticVec::<_, 4>::try_from_iter(0..4).unwrap();
 
     assert_eq!(v.len(), 4);
     assert_eq!(v.swap_remove(0), 0);
