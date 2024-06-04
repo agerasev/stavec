@@ -59,13 +59,3 @@ where
         Self::try_from_slice(slice)
     }
 }
-impl<C: DefaultContainer, L: Length> TryFrom<&mut [C::Item]> for GenericVec<C, L>
-where
-    C::Item: Clone,
-{
-    type Error = FullError;
-
-    fn try_from(slice: &mut [C::Item]) -> Result<Self, Self::Error> {
-        Self::try_from_slice(slice)
-    }
-}

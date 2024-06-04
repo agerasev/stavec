@@ -33,19 +33,38 @@ impl<C: DefaultContainer<Item = u8>, L: Length> Clone for GenericString<C, L> {
     }
 }
 
-impl<C: Container<Item = u8> + ?Sized, L: Length> GenericString<C, L> {
-    pub fn push(&mut self, c: char) -> Result<(), FullError> {
-        let char_len = c.len_utf8();
-        if self.bytes.remaining() >= char_len {
-            self.bytes.extend_from_slice(&[0; 4][..char_len]).unwrap();
-            Ok(())
-        } else {
-            Err(FullError)
-        }
+impl<C: DefaultContainer<Item = u8>, L: Length> GenericString<C, L> {
+    fn try_from_str(s: &str) -> Result<Self, FullError> {
+        let mut self_ = Self::default();
+        self_.push_str(s)?;
+        Ok(self_)
+    }
+}
+impl<C: DefaultContainer<Item = u8>, L: Length> TryFrom<&str> for GenericString<C, L> {
+    type Error = FullError;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Self::try_from_str(s)
     }
 }
 
 impl<C: Container<Item = u8> + ?Sized, L: Length> GenericString<C, L> {
+    pub fn capacity(&self) -> usize {
+        self.bytes.capacity()
+    }
+    pub fn len(&self) -> usize {
+        self.bytes.len()
+    }
+    pub fn remaining(&self) -> usize {
+        self.bytes.remaining()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+    pub fn is_full(&self) -> bool {
+        self.bytes.is_full()
+    }
+
     /// Provides an access to underlying vector.
     pub fn as_vec(&self) -> &GenericVec<C, L> {
         &self.bytes
@@ -58,23 +77,6 @@ impl<C: Container<Item = u8> + ?Sized, L: Length> GenericString<C, L> {
     pub unsafe fn as_vec_mut(&mut self) -> &mut GenericVec<C, L> {
         &mut self.bytes
     }
-}
-
-impl<C: Container<Item = u8> + ?Sized, L: Length> GenericString<C, L> {
-    /// The number of elements in the string.
-    pub fn len(&self) -> usize {
-        self.as_str().len()
-    }
-
-    /// Checks whether the vector is empty.
-    pub fn is_empty(&self) -> bool {
-        self.as_str().is_empty()
-    }
-
-    /// Drop all elements in the vector and set its length to zero.
-    pub fn clear(&mut self) {
-        self.bytes.clear();
-    }
 
     /// String slice.
     pub fn as_str(&self) -> &str {
@@ -83,6 +85,19 @@ impl<C: Container<Item = u8> + ?Sized, L: Length> GenericString<C, L> {
     /// Mutable string slice.
     pub fn as_mut_str(&mut self) -> &mut str {
         unsafe { from_utf8_unchecked_mut(self.bytes.as_mut_slice()) }
+    }
+
+    pub fn clear(&mut self) {
+        self.bytes.clear();
+    }
+
+    pub fn push(&mut self, c: char) -> Result<(), FullError> {
+        let mut bytes = [0; 4];
+        c.encode_utf8(&mut bytes);
+        self.bytes.extend_from_slice(&bytes[..c.len_utf8()])
+    }
+    pub fn push_str(&mut self, s: &str) -> Result<(), FullError> {
+        self.bytes.extend_from_slice(s.as_bytes())
     }
 }
 
