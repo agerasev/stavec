@@ -9,7 +9,7 @@ use core::{
     fmt,
     hash::{Hash, Hasher},
     ops::{Deref, DerefMut},
-    str::{from_utf8_unchecked, from_utf8_unchecked_mut},
+    str::{from_utf8, from_utf8_unchecked, from_utf8_unchecked_mut, Utf8Error},
 };
 
 #[repr(transparent)]
@@ -45,6 +45,20 @@ impl<C: DefaultContainer<Item = u8>, L: Length> TryFrom<&str> for GenericString<
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         Self::try_from_str(s)
+    }
+}
+
+impl<C: DefaultContainer<Item = u8>, L: Length> GenericString<C, L> {
+    pub fn try_from_vec(vec: GenericVec<C, L>) -> Result<Self, Utf8Error> {
+        from_utf8(vec.as_slice())?;
+        Ok(Self { bytes: vec })
+    }
+}
+impl<C: DefaultContainer<Item = u8>, L: Length> TryFrom<GenericVec<C, L>> for GenericString<C, L> {
+    type Error = Utf8Error;
+
+    fn try_from(vec: GenericVec<C, L>) -> Result<Self, Self::Error> {
+        Self::try_from_vec(vec)
     }
 }
 
