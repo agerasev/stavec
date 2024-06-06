@@ -219,20 +219,9 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
     }
 
     /// Appends items from iterator to the vector until iterator ends or the vector is full.
-    ///
-    /// Returns:
-    /// + `Ok` if iterator ends before the vector is full.
-    /// + `Err` if free space in the vector ends before iterator.
-    pub fn extend_from_iter<I: Iterator<Item = C::Item>>(
-        &mut self,
-        mut iter: I,
-    ) -> Result<(), C::Item> {
+    pub fn extend_from_iter<I: Iterator<Item = C::Item>>(&mut self, mut iter: I) {
         for x in (&mut iter).take(self.capacity() - self.len()) {
             unsafe { self.push_unchecked(x) };
-        }
-        match iter.next() {
-            Some(x) => Err(x),
-            None => Ok(()),
         }
     }
 
@@ -407,5 +396,11 @@ impl<C: Container + ?Sized, L: Length> Borrow<[C::Item]> for GenericVec<C, L> {
 impl<C: Container + ?Sized, L: Length> BorrowMut<[C::Item]> for GenericVec<C, L> {
     fn borrow_mut(&mut self) -> &mut [C::Item] {
         self.as_mut_slice()
+    }
+}
+
+impl<C: Container + ?Sized, L: Length> Extend<C::Item> for GenericVec<C, L> {
+    fn extend<I: IntoIterator<Item = C::Item>>(&mut self, iter: I) {
+        self.extend_from_iter(iter.into_iter())
     }
 }

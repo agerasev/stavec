@@ -32,8 +32,6 @@ impl<T, const N: usize> StaticVec<T, N> {
     pub fn from_array<const M: usize>(array: [T; M]) -> Self {
         assert!(M <= N); // TODO: Use static assert.
         Self::try_from_iter(IntoIterator::into_iter(array))
-            .ok()
-            .unwrap()
     }
 }
 
