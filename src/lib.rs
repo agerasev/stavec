@@ -3,6 +3,7 @@
 #[cfg(feature = "std")]
 extern crate std;
 
+pub mod error;
 /// Traits for [`GenericVec`] parameters.
 ///
 /// You probably won't need them is you use only [`StaticVec`].

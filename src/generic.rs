@@ -1,6 +1,7 @@
 use crate::{
+    error::FullError,
     traits::{Container, Length, Slot},
-    utils::{slice_assume_init_mut, slice_assume_init_ref, uninit_write_slice_cloned, FullError},
+    utils::{slice_assume_init_mut, slice_assume_init_ref, uninit_write_slice_cloned},
 };
 use core::{
     borrow::{Borrow, BorrowMut},

@@ -1,6 +1,6 @@
 use crate::{
+    error::FullError,
     traits::{Container, DefaultContainer, Length},
-    utils::FullError,
     GenericVec,
 };
 use core::{

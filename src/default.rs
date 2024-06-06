@@ -1,7 +1,7 @@
 use super::GenericVec;
 use crate::{
+    error::FullError,
     traits::{DefaultContainer, Length},
-    utils::FullError,
 };
 use core::iter::IntoIterator;
 
