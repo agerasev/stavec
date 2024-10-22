@@ -13,9 +13,15 @@ impl<C: DefaultContainer, L: Length> GenericVec<C, L> {
 }
 
 impl<C: DefaultContainer, L: Length> GenericVec<C, L> {
-    pub fn try_from_iter<I: IntoIterator<Item = C::Item>>(iter: I) -> Self {
+    pub fn try_from_iter<I: IntoIterator<Item = C::Item>>(iter: I) -> Result<Self, C::Item> {
         let mut self_ = Self::new();
-        self_.extend_from_iter(iter.into_iter());
+        self_.try_extend(iter.into_iter())?;
+        Ok(self_)
+    }
+
+    pub fn from_iter_until_full<I: IntoIterator<Item = C::Item>>(iter: I) -> Self {
+        let mut self_ = Self::new();
+        self_.extend_until_full(iter);
         self_
     }
 }
@@ -41,10 +47,10 @@ where
 {
     /// Creates a new vector with cloned elements from slice.
     ///
-    /// If slice length is greater than the vector capacity then excess elements are simply ignored.
+    /// If slice length is greater than the vector capacity then error is returned.
     pub fn try_from_slice(slice: &[C::Item]) -> Result<Self, FullError> {
         let mut self_ = Self::default();
-        self_.extend_from_slice(slice)?;
+        self_.push_slice(slice)?;
         Ok(self_)
     }
 }

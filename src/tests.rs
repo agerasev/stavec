@@ -119,15 +119,15 @@ fn drop() {
 }
 
 #[test]
-fn extend_from_slice() {
+fn push_slice() {
     let mut v = StaticVec::<i32, 4>::new();
-    v.extend_from_slice(&[0, 1, 2]).unwrap();
+    v.push_slice(&[0, 1, 2]).unwrap();
     assert_eq!(v.len(), 3);
     for i in 0..3 {
         assert_eq!(v[i], i as i32);
     }
 
-    v.extend_from_slice(&[3]).unwrap();
+    v.push_slice(&[3]).unwrap();
     assert_eq!(v.len(), 4);
     for i in 0..4 {
         assert_eq!(v[i], i as i32);
@@ -135,9 +135,9 @@ fn extend_from_slice() {
 }
 
 #[test]
-fn extend_from_slice_failed() {
+fn push_slice_failed() {
     let mut v = StaticVec::<i32, 4>::new();
-    assert!(v.extend_from_slice(&[0, 1, 2, 3, 4]).is_err());
+    assert!(v.push_slice(&[0, 1, 2, 3, 4]).is_err());
     assert!(v.is_empty());
 }
 
@@ -149,7 +149,7 @@ fn fmt() {
     let mut v = StaticVec::<i32, 4>::new();
     assert_eq!(format!("{:?}", &v), "[]");
 
-    v.extend_from_slice(&[0, 1, 2]).unwrap();
+    v.push_slice(&[0, 1, 2]).unwrap();
     assert_eq!(format!("{:?}", &v), "[0, 1, 2]");
 
     v.push(3).unwrap();

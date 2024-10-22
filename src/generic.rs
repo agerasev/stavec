@@ -218,9 +218,23 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
         unsafe { self.data.as_mut().get_unchecked_mut(len..cap) }
     }
 
+    /// Appends items from iterator to the vector until iterator ends.
+    ///
+    /// To avoid silencing situation when vector cannot store all iterator items,
+    /// `iter.next()` is called once more time after vector is full,
+    /// and if it returned `Some(item)` then this method returns `Err(item)`.
+    pub fn try_extend<I: IntoIterator<Item = C::Item>>(&mut self, iter: I) -> Result<(), C::Item> {
+        let mut iter = iter.into_iter();
+        self.extend_until_full(&mut iter);
+        match iter.next() {
+            Some(item) => Err(item),
+            None => Ok(()),
+        }
+    }
+
     /// Appends items from iterator to the vector until iterator ends or the vector is full.
-    pub fn extend_from_iter<I: Iterator<Item = C::Item>>(&mut self, mut iter: I) {
-        for x in (&mut iter).take(self.capacity() - self.len()) {
+    pub fn extend_until_full<I: IntoIterator<Item = C::Item>>(&mut self, iter: I) {
+        for x in iter.into_iter().take(self.capacity() - self.len()) {
             unsafe { self.push_unchecked(x) };
         }
     }
@@ -243,7 +257,7 @@ where
     /// Clones and appends items in a slice to this vector until slice ends or vector capacity reached.
     ///
     /// Returns `Err` if slice length is greater than the number of remaining slots in the vector and does not copy items.
-    pub fn extend_from_slice(&mut self, slice: &[C::Item]) -> Result<(), FullError> {
+    pub fn push_slice(&mut self, slice: &[C::Item]) -> Result<(), FullError> {
         let free_space = self.free_space_as_mut_slice();
         if slice.len() > free_space.len() {
             Err(FullError)
@@ -396,11 +410,5 @@ impl<C: Container + ?Sized, L: Length> Borrow<[C::Item]> for GenericVec<C, L> {
 impl<C: Container + ?Sized, L: Length> BorrowMut<[C::Item]> for GenericVec<C, L> {
     fn borrow_mut(&mut self) -> &mut [C::Item] {
         self.as_mut_slice()
-    }
-}
-
-impl<C: Container + ?Sized, L: Length> Extend<C::Item> for GenericVec<C, L> {
-    fn extend<I: IntoIterator<Item = C::Item>>(&mut self, iter: I) {
-        self.extend_from_iter(iter.into_iter())
     }
 }

@@ -108,10 +108,10 @@ impl<C: Container<Item = u8> + ?Sized, L: Length> GenericString<C, L> {
     pub fn push(&mut self, c: char) -> Result<(), FullError> {
         let mut bytes = [0; 4];
         c.encode_utf8(&mut bytes);
-        self.bytes.extend_from_slice(&bytes[..c.len_utf8()])
+        self.bytes.push_slice(&bytes[..c.len_utf8()])
     }
     pub fn push_str(&mut self, s: &str) -> Result<(), FullError> {
-        self.bytes.extend_from_slice(s.as_bytes())
+        self.bytes.push_slice(s.as_bytes())
     }
 }
 
