@@ -1,6 +1,9 @@
 use super::GenericVec;
-use crate::traits::{DefaultContainer, Length};
-use core::iter::{FromIterator, IntoIterator};
+use crate::{
+    error::FullError,
+    traits::{DefaultContainer, Length},
+};
+use core::iter::IntoIterator;
 
 impl<C: DefaultContainer, L: Length> GenericVec<C, L> {
     /// Create a new empty vector.
@@ -9,8 +12,8 @@ impl<C: DefaultContainer, L: Length> GenericVec<C, L> {
     }
 }
 
-impl<C: DefaultContainer, L: Length> FromIterator<C::Item> for GenericVec<C, L> {
-    fn from_iter<I: IntoIterator<Item = C::Item>>(iter: I) -> Self {
+impl<C: DefaultContainer, L: Length> GenericVec<C, L> {
+    pub fn try_from_iter<I: IntoIterator<Item = C::Item>>(iter: I) -> Self {
         let mut self_ = Self::new();
         self_.extend_from_iter(iter.into_iter());
         self_
@@ -28,7 +31,7 @@ where
     C::Item: Clone,
 {
     fn clone(&self) -> Self {
-        Self::from_iter(self.iter().cloned())
+        Self::try_from_slice(self.as_slice()).unwrap()
     }
 }
 
@@ -39,25 +42,20 @@ where
     /// Creates a new vector with cloned elements from slice.
     ///
     /// If slice length is greater than the vector capacity then excess elements are simply ignored.
-    pub fn from_slice(slice: &[C::Item]) -> Self {
-        Self::from_iter(slice.iter().cloned())
+    pub fn try_from_slice(slice: &[C::Item]) -> Result<Self, FullError> {
+        let mut self_ = Self::default();
+        self_.extend_from_slice(slice)?;
+        Ok(self_)
     }
 }
 
-impl<C: DefaultContainer, L: Length> From<&[C::Item]> for GenericVec<C, L>
+impl<C: DefaultContainer, L: Length> TryFrom<&[C::Item]> for GenericVec<C, L>
 where
     C::Item: Clone,
 {
-    fn from(slice: &[C::Item]) -> Self {
-        Self::from_slice(slice)
-    }
-}
+    type Error = FullError;
 
-impl<C: DefaultContainer, L: Length> From<&mut [C::Item]> for GenericVec<C, L>
-where
-    C::Item: Clone,
-{
-    fn from(slice: &mut [C::Item]) -> Self {
-        Self::from_slice(slice)
+    fn try_from(slice: &[C::Item]) -> Result<Self, Self::Error> {
+        Self::try_from_slice(slice)
     }
 }

@@ -25,6 +25,7 @@ pub unsafe trait Slot: Sized {
 pub trait UninitSlot: Slot {
     fn uninit() -> Self;
 }
+
 unsafe impl<T> Slot for MaybeUninit<T> {
     type Item = T;
 
@@ -41,6 +42,25 @@ unsafe impl<T> Slot for MaybeUninit<T> {
 impl<T> UninitSlot for MaybeUninit<T> {
     fn uninit() -> Self {
         Self::uninit()
+    }
+}
+
+unsafe impl Slot for u8 {
+    type Item = u8;
+
+    fn new(byte: u8) -> Self {
+        byte
+    }
+    unsafe fn assume_init(self) -> Self::Item {
+        self
+    }
+    unsafe fn assume_init_read(&self) -> Self::Item {
+        *self
+    }
+}
+impl UninitSlot for u8 {
+    fn uninit() -> Self {
+        0
     }
 }
 

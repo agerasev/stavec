@@ -1,4 +1,5 @@
 use crate::{
+    error::FullError,
     traits::{Container, Length, Slot},
     utils::{slice_assume_init_mut, slice_assume_init_ref, uninit_write_slice_cloned},
 };
@@ -7,7 +8,7 @@ use core::{
     convert::{AsMut, AsRef},
     fmt,
     hash::{Hash, Hasher},
-    iter::{Extend, IntoIterator},
+    iter::IntoIterator,
     mem,
     ops::{Deref, DerefMut, Index, IndexMut},
     ptr,
@@ -50,7 +51,7 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
         clamp_max(self.data.as_ref().len(), L::max_value().to_usize().unwrap())
     }
 
-    /// The number of elements in the vector. Must be less or equal to [`capacity()`](`Self::capacity`).
+    /// The number of items in the vector. Must be less or equal to [`capacity()`](`Self::capacity`).
     pub fn len(&self) -> usize {
         self.len.to_usize().unwrap()
     }
@@ -71,7 +72,7 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
         self.len() == self.capacity()
     }
 
-    /// Appends a new element to the end of the vector *without checking whether the vector is already full*.
+    /// Appends a new item to the end of the vector *without checking whether the vector is already full*.
     ///
     /// # Safety
     ///
@@ -85,9 +86,9 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
         self.len += L::one();
     }
 
-    /// Appends a new element to the end of the vector.
+    /// Appends a new item to the end of the vector.
     ///
-    /// If the vector is already full then the element is returned.
+    /// If the vector is already full then the item is returned.
     pub fn push(&mut self, value: C::Item) -> Result<(), C::Item> {
         if self.is_full() {
             Err(value)
@@ -97,7 +98,7 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
         }
     }
 
-    /// Takes a last element of the vector *without checking whether the vector is empty*.
+    /// Takes the last item of the vector *without checking whether the vector is empty*.
     ///
     /// # Safety
     ///
@@ -108,7 +109,7 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
         self.data.as_mut().get_unchecked_mut(len).assume_init_read()
     }
 
-    /// Removes and returns the last element of the vector.
+    /// Removes and returns the last item of the vector.
     ///
     /// If the vector is empty then `None` is returned.
     pub fn pop(&mut self) -> Option<C::Item> {
@@ -119,7 +120,7 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
         }
     }
 
-    /// Truncates the vector. Excess elements are simply dropped.
+    /// Truncates the vector. Excess items are simply dropped.
     ///
     /// If `new_len` is greater then vector length the methods simply does nothing.
     pub fn truncate(&mut self, new_len: usize) {
@@ -128,10 +129,10 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
         }
     }
 
-    /// Removes and returns the element at position `index` within the vector,
-    /// shifting all elements after it to the left.
+    /// Removes and returns an item at the position `index` within the vector,
+    /// shifting all items after it to the left.
     ///
-    /// Note: Because this shifts over the remaining elements, it has a
+    /// Note: Because this shifts over the remaining items, it has a
     /// worst-case performance of *O*(*n*).
     ///
     /// # Examples
@@ -161,12 +162,12 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
         }
     }
 
-    /// Removes an element from the vector and returns it.
+    /// Removes an item from the vector and returns it.
     ///
-    /// The removed element is replaced by the last element of the vector.
+    /// The removed item is replaced by the last item of the vector.
     ///
     /// This does not preserve ordering, but is *O*(1).
-    /// If you need to preserve the element order, use `remove` instead.
+    /// If you need to preserve the item order, use `remove` instead.
     ///
     /// # Panics
     ///
@@ -175,8 +176,8 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
         let len = self.len();
         assert!(index < len);
         unsafe {
-            // We replace self[index] with the last element. Note that if the
-            // bounds check above succeeds there must be a last element (which
+            // We replace self[index] with the last item. Note that if the
+            // bounds check above succeeds there must be a last item (which
             // can be self[index] itself).
             let value = ptr::read(self.as_ptr().add(index));
             let base_ptr = self.as_mut_ptr();
@@ -186,7 +187,7 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
         }
     }
 
-    /// Drop all elements in the vector and set its length to zero.
+    /// Drop all items in the vector and set its length to zero.
     pub fn clear(&mut self) {
         self.truncate(0);
     }
@@ -217,24 +218,19 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
         unsafe { self.data.as_mut().get_unchecked_mut(len..cap) }
     }
 
-    /// Appends elements from iterator to the vector until iterator ends or the vector is full.
-    ///
-    /// Returns a number of elements being appended.
-    pub fn extend_from_iter<I: Iterator<Item = C::Item>>(&mut self, iter: I) -> usize {
-        let mut counter = 0;
-        for x in iter.take(self.capacity() - self.len()) {
+    /// Appends items from iterator to the vector until iterator ends or the vector is full.
+    pub fn extend_from_iter<I: Iterator<Item = C::Item>>(&mut self, mut iter: I) {
+        for x in (&mut iter).take(self.capacity() - self.len()) {
             unsafe { self.push_unchecked(x) };
-            counter += 1;
         }
-        counter
     }
 
-    /// Returns iterator over references of vector elements.
+    /// Returns iterator over references of vector items.
     pub fn iter(&self) -> Iter<C::Item> {
         self.as_slice().iter()
     }
 
-    /// Returns iterator over mutable references of vector elements.
+    /// Returns iterator over mutable references of vector items.
     pub fn iter_mut(&mut self) -> IterMut<C::Item> {
         self.as_mut_slice().iter_mut()
     }
@@ -244,22 +240,24 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L>
 where
     C::Item: Clone,
 {
-    /// Clones and appends elements in a slice to this vector until slice ends or vector capacity reached.
+    /// Clones and appends items in a slice to this vector until slice ends or vector capacity reached.
     ///
-    /// If slice length is greater than free space in the vector then excess elements are simply ignored.
-    ///
-    /// Returns a number of elements being appended.
-    pub fn extend_from_slice(&mut self, slice: &[C::Item]) -> usize {
+    /// Returns `Err` if slice length is greater than the number of remaining slots in the vector and does not copy items.
+    pub fn extend_from_slice(&mut self, slice: &[C::Item]) -> Result<(), FullError> {
         let free_space = self.free_space_as_mut_slice();
-        let min_len = usize::min(free_space.len(), slice.len());
-        unsafe {
-            uninit_write_slice_cloned(
-                free_space.get_unchecked_mut(..min_len),
-                slice.get_unchecked(..min_len),
-            );
+        if slice.len() > free_space.len() {
+            Err(FullError)
+        } else {
+            let len = slice.len();
+            unsafe {
+                uninit_write_slice_cloned(
+                    free_space.get_unchecked_mut(..len),
+                    slice.get_unchecked(..len),
+                );
+            }
+            self.len += L::from_usize(len).unwrap();
+            Ok(())
         }
-        self.len += L::from_usize(min_len).unwrap();
-        min_len
     }
 
     /// Resizes the vector to the specified length.
@@ -403,6 +401,6 @@ impl<C: Container + ?Sized, L: Length> BorrowMut<[C::Item]> for GenericVec<C, L>
 
 impl<C: Container + ?Sized, L: Length> Extend<C::Item> for GenericVec<C, L> {
     fn extend<I: IntoIterator<Item = C::Item>>(&mut self, iter: I) {
-        self.extend_from_iter(iter.into_iter());
+        self.extend_from_iter(iter.into_iter())
     }
 }
