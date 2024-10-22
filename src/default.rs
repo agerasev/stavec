@@ -13,12 +13,6 @@ impl<C: DefaultContainer, L: Length> GenericVec<C, L> {
 }
 
 impl<C: DefaultContainer, L: Length> GenericVec<C, L> {
-    pub fn try_from_iter<I: IntoIterator<Item = C::Item>>(iter: I) -> Result<Self, C::Item> {
-        let mut self_ = Self::new();
-        self_.try_extend(iter.into_iter())?;
-        Ok(self_)
-    }
-
     pub fn from_iter_until_full<I: IntoIterator<Item = C::Item>>(iter: I) -> Self {
         let mut self_ = Self::new();
         self_.extend_until_full(iter);

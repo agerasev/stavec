@@ -218,20 +218,6 @@ impl<C: Container + ?Sized, L: Length> GenericVec<C, L> {
         unsafe { self.data.as_mut().get_unchecked_mut(len..cap) }
     }
 
-    /// Appends items from iterator to the vector until iterator ends.
-    ///
-    /// To avoid silencing situation when vector cannot store all iterator items,
-    /// `iter.next()` is called once more time after vector is full,
-    /// and if it returned `Some(item)` then this method returns `Err(item)`.
-    pub fn try_extend<I: IntoIterator<Item = C::Item>>(&mut self, iter: I) -> Result<(), C::Item> {
-        let mut iter = iter.into_iter();
-        self.extend_until_full(&mut iter);
-        match iter.next() {
-            Some(item) => Err(item),
-            None => Ok(()),
-        }
-    }
-
     /// Appends items from iterator to the vector until iterator ends or the vector is full.
     pub fn extend_until_full<I: IntoIterator<Item = C::Item>>(&mut self, iter: I) {
         for x in iter.into_iter().take(self.capacity() - self.len()) {

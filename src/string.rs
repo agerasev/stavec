@@ -88,7 +88,7 @@ impl<C: Container<Item = u8> + ?Sized, L: Length> GenericString<C, L> {
     /// # Safety
     ///
     /// Vector contents must remain valid UTF-8.
-    pub unsafe fn as_vec_mut(&mut self) -> &mut GenericVec<C, L> {
+    pub unsafe fn as_mut_vec(&mut self) -> &mut GenericVec<C, L> {
         &mut self.bytes
     }
 

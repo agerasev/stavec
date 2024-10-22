@@ -157,8 +157,8 @@ fn fmt() {
 }
 
 #[test]
-fn iter() {
-    let v = StaticVec::<_, 4>::try_from_iter(0..3).unwrap();
+fn from_iter() {
+    let v = StaticVec::<_, 4>::from_iter_until_full(0..3);
     let mut it = v.into_iter();
 
     assert_eq!(it.next(), Some(0));
@@ -168,8 +168,14 @@ fn iter() {
 }
 
 #[test]
-fn from_iter_failed() {
-    assert_eq!(StaticVec::<_, 2>::try_from_iter(0..3), Err(2));
+fn from_iter_full() {
+    let v = StaticVec::<_, 3>::from_iter_until_full(0..4);
+    let mut it = v.into_iter();
+
+    assert_eq!(it.next(), Some(0));
+    assert_eq!(it.next(), Some(1));
+    assert_eq!(it.next(), Some(2));
+    assert_eq!(it.next(), None);
 }
 
 #[test]
@@ -197,7 +203,7 @@ fn iter_drop() {
 
 #[test]
 fn remove() {
-    let mut v = StaticVec::<_, 4>::try_from_iter(0..4).unwrap();
+    let mut v = StaticVec::<_, 4>::from_iter_until_full(0..4);
 
     assert_eq!(v.len(), 4);
     assert_eq!(v.remove(3), 3);
@@ -212,7 +218,7 @@ fn remove() {
 
 #[test]
 fn swap_remove() {
-    let mut v = StaticVec::<_, 4>::try_from_iter(0..4).unwrap();
+    let mut v = StaticVec::<_, 4>::from_iter_until_full(0..4);
 
     assert_eq!(v.len(), 4);
     assert_eq!(v.swap_remove(0), 0);
